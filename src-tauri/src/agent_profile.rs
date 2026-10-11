@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
 /// Bump when the instructions or the guides change, so the files are rewritten.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 const INSTRUCTIONS: &str = include_str!("../../src/agent-profile/instructions.md");
 

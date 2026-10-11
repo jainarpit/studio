@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiBar, API_PANEL_ID } from "./components/ApiBar";
 import { ApiSwitcher } from "./components/ApiSwitcher";
 import { AddedToast, AddToCollectionMenu } from "./components/collections/AddToCollection";
@@ -35,6 +35,8 @@ import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { ConsolePanel } from "./components/ConsolePanel";
 import { AgentChatPanel } from "./components/agent-chat/AgentChatPanel";
+import { RunNotices } from "./components/RunNotices";
+import { runNotices, setOpenRunHandler, showLogWhenFinished, subscribeRunActivity } from "./lib/runActivity";
 import { AgentChatSettings } from "./components/settings/AgentChatSettings";
 import { toggleConsole } from "./lib/appConsole";
 import { TitleBar } from "./components/TitleBar";
@@ -563,6 +565,31 @@ export default function App() {
     [collectionList, selectCollection, runLogs, setRoute],
   );
 
+  // The status bar's run indicator and the run notices open a collection's runs.
+  useEffect(() => {
+    setOpenRunHandler((collectionId, runId) => {
+      setRoute("collections");
+      selectCollection(collectionId);
+      runLogs.show(collectionId, runId);
+    });
+    return () => setOpenRunHandler(null);
+  }, [selectCollection, runLogs, setRoute]);
+
+  // A run the developer started finishes while they're still on that
+  // collection: show them its log. Runs an agent started, or ones that finish
+  // while the developer is elsewhere, only get a notice.
+  const watching = useRef({ route, collectionId: collections.selected?.id ?? null });
+  watching.current = { route, collectionId: collections.selected?.id ?? null };
+  useEffect(() => {
+    let seen = runNotices()[0]?.runId;
+    return subscribeRunActivity(() => {
+      const latest = runNotices()[0];
+      if (!latest || latest.runId === seen) return;
+      seen = latest.runId;
+      if (showLogWhenFinished(latest, watching.current)) runLogs.show(latest.collectionId, latest.runId);
+    });
+  }, [runLogs]);
+
   return (
     <div
       className="app"
@@ -598,479 +625,492 @@ export default function App() {
         localMocks={localMocks.count}
       />
 
-      {onApi && (
-        <ApiBar
-          kind="api"
-          title={spec!.title || current?.title || "Untitled API"}
-          version={spec!.version}
-          source={current?.source.kind}
-          converted={spec!.converted}
-          mock={
-            current && (current.mockUrl || journeyAvailable(targetOf(current, session?.apiUrl ?? DEFAULT_API_URL)))
-              ? {
-                  has: Boolean(current.mockUrl),
-                  onOpen: () => journey.start(entries.find((entry) => entry.id === current.id) ?? current),
-                }
-              : null
-          }
-          localMock={
-            current && localMocks.available
-              ? {
-                  port: localMockPort,
-                  busy: localMocks.busy === current.id,
-                  error: localMocks.error?.id === current.id ? localMocks.error.message : null,
-                  onStart: () => void localMocks.start(current),
-                  onStop: () => void localMocks.stop(current.id),
-                }
-              : null
-          }
-          section={section}
-          onSection={showSection}
-          onGoLibrary={goLibrary}
-          onSwitchApi={() => setShowSwitcher(true)}
-          onRun={() => setShowRun(true)}
-          onAddApi={() => setShowOpen(true)}
-          inspectorOpen={settings.inspectorOpen}
-          onToggleInspector={() => patchSettings({ inspectorOpen: !settings.inspectorOpen })}
-        />
-      )}
-      {onApi && (
-        <RequestTabs
-          tabs={requestTabs.tabs}
-          activeKey={requestTabs.activeKey}
-          entries={entries}
-          hasUnsent={drafts.hasUnsent}
-          onActivate={requestTabs.activate}
-          onClose={requestTabs.close}
-        />
-      )}
-      {onScratch && (
-        <ApiBar
-          kind="scratch"
-          onGoLibrary={goLibrary}
-          inspectorOpen={settings.inspectorOpen}
-          onToggleInspector={() => patchSettings({ inspectorOpen: !settings.inspectorOpen })}
-        />
-      )}
+      {/* The page on the left, the agent chat docked on the right. The page
+          shrinks next to the chat rather than sitting under it. */}
+      <div className="app-body">
+        <div className="app-main">
+          <RunNotices />
+          {onApi && (
+            <ApiBar
+              kind="api"
+              title={spec!.title || current?.title || "Untitled API"}
+              version={spec!.version}
+              source={current?.source.kind}
+              converted={spec!.converted}
+              mock={
+                current && (current.mockUrl || journeyAvailable(targetOf(current, session?.apiUrl ?? DEFAULT_API_URL)))
+                  ? {
+                      has: Boolean(current.mockUrl),
+                      onOpen: () => journey.start(entries.find((entry) => entry.id === current.id) ?? current),
+                    }
+                  : null
+              }
+              localMock={
+                current && localMocks.available
+                  ? {
+                      port: localMockPort,
+                      busy: localMocks.busy === current.id,
+                      error: localMocks.error?.id === current.id ? localMocks.error.message : null,
+                      onStart: () => void localMocks.start(current),
+                      onStop: () => void localMocks.stop(current.id),
+                    }
+                  : null
+              }
+              section={section}
+              onSection={showSection}
+              onGoLibrary={goLibrary}
+              onSwitchApi={() => setShowSwitcher(true)}
+              onRun={() => setShowRun(true)}
+              onAddApi={() => setShowOpen(true)}
+              inspectorOpen={settings.inspectorOpen}
+              onToggleInspector={() => patchSettings({ inspectorOpen: !settings.inspectorOpen })}
+            />
+          )}
+          {onApi && (
+            <RequestTabs
+              tabs={requestTabs.tabs}
+              activeKey={requestTabs.activeKey}
+              entries={entries}
+              hasUnsent={drafts.hasUnsent}
+              onActivate={requestTabs.activate}
+              onClose={requestTabs.close}
+            />
+          )}
+          {onScratch && (
+            <ApiBar
+              kind="scratch"
+              onGoLibrary={goLibrary}
+              inspectorOpen={settings.inspectorOpen}
+              onToggleInspector={() => patchSettings({ inspectorOpen: !settings.inspectorOpen })}
+            />
+          )}
 
-      {route === "settings" ? (
-        <>
-          <SettingsView
-            section={nav.settingsSection}
-            onSection={nav.setSettingsSection}
-            content={{
-              account: (
-                <AccountSettings
-                  session={session}
-                  onSignIn={openSignIn}
-                  onBrowseCatalog={openCatalog}
-                  onSignOut={() => updateSession(null)}
-                  onOpenSpec0={() => void openInBrowser(session?.appUrl ?? "")}
-                />
-              ),
-              network: (
-                <NetworkSettings
-                  settings={connection}
-                  onSave={saveConnectionSettings}
-                  jar={
-                    nav.lastApisRoute === "scratch"
-                      ? { id: "__scratch__", title: "Scratch" }
-                      : current
-                        ? { id: current.id, title: current.title }
-                        : null
-                  }
-                  suggestHost={nav.suggestHost}
-                />
-              ),
-              updates: <UpdateSettings updater={updater} />,
-              appearance: (
-                <AppearanceSettings
-                  dark={settings.dark}
-                  onDark={(dark) => patchSettings({ dark })}
-                  inspectorOpen={settings.inspectorOpen}
-                  onInspectorOpen={(inspectorOpen) => patchSettings({ inspectorOpen })}
-                />
-              ),
-              mcp: <McpSettings signedIn={Boolean(session)} />,
-              agent: <AgentChatSettings />,
-              data: <DataSettings historyCount={requests.length} onClearHistory={clearHistory} />,
-            }}
-          />
-          <StatusBar summary="Settings · saved as you change them" envName={activeEnv?.name} result={null} />
-        </>
-      ) : route === "collections" ? (
-        <>
-          <CollectionsView api={collections} entries={entries} onGoLibrary={goLibrary} />
-          <StatusBar
-            summary="Collections · steps point at operations in your specs"
-            envName={activeEnv?.name}
-            result={null}
-          />
-        </>
-      ) : route === "mocks" ? (
-        <>
-          <MocksView
-            signedIn={Boolean(session)}
-            orgName={session?.orgName}
-            mocks={mocks.mocks}
-            loading={mocks.loading}
-            error={mocks.error}
-            onRefresh={() => void mocks.refresh()}
-            onSignIn={openSignIn}
-            onCreate={journey.startPicking}
-            keys={mocks.keys}
-            onLoadKey={mocks.loadKey}
-            onRegenerateKey={(id) => void mocks.regenerateKey(id)}
-            local={{
-              available: localMocks.available,
-              entries,
-              running: localMocks.running,
-              busy: localMocks.busy,
-              error: localMocks.error,
-              invalid: localMocks.invalid,
-              onInvalid: localMocks.setInvalid,
-              onStart: (entry) => void localMocks.start(entry),
-              onStop: (id) => void localMocks.stop(id),
-            }}
-          />
-          <StatusBar
-            summary={
-              "Mocks · " +
-              (localMocks.count ? `${localMocks.count} running on this computer · ` : "") +
-              (session ? `hosted in ${session.orgName}` : "sign in to see hosted mocks")
-            }
-            envName={activeEnv?.name}
-            result={null}
-          />
-        </>
-      ) : route === "mcp" ? (
-        <>
-          <McpView signedIn={Boolean(session)} onOpenSettings={() => nav.openSettings("mcp")} />
-          <StatusBar summary="MCP" envName={activeEnv?.name} result={null} />
-        </>
-      ) : onHistory ? (
-        <>
-          <HistoryView
-            entries={log}
-            specFor={specFor}
-            onCopy={copyRecord}
-            onClear={clearHistory}
-            onAddToCollection={(entry, position, entrySpec) => collections.openRecordMenu(position, entry, entrySpec)}
-          />
-          <StatusBar
-            summary="History · kept 30 days, only on this machine"
-            envName={activeEnv?.name}
-            result={null}
-          />
-        </>
-      ) : onScratch ? (
-        <>
-          <ScratchView
-            pad={pad}
-            onChange={updatePad}
-            vars={vars}
-            sending={sending}
-            onSend={() => void doScratchSend()}
-            history={scratchHistory}
-            onOpenRecord={setRecord}
-            record={
-              record
-                ? {
-                    id: record.id,
-                    view: (
-                      <HistoryDetail
-                        key={record.id}
-                        entry={record}
-                        spec={null}
-                        onCopy={copyRecord}
-                        onClose={() => setRecord(null)}
-                        onAddToCollection={(entry, position) => collections.openRecordMenu(position, entry, null)}
-                      />
-                    ),
-                  }
-                : null
-            }
-            notice={
-              copiedFrom && <CopiedNote at={copiedFrom} onDismiss={() => setCopiedFrom(null)} />
-            }
-            inspector={
-              settings.inspectorOpen && (
-                <section className="pane response">
-                  <Inspector
-                    result={result}
-                    validation={null}
-                    error={requestError}
-                    curl={curl}
-                    noSchema
-                    showHook={false}
-                    onDismissHook={() => {}}
-                  />
-                </section>
-              )
-            }
-          />
-          <StatusBar
-            summary="Scratch · one ad-hoc request, not saved"
-            envName={activeEnv?.name}
-            result={result}
-          />
-        </>
-      ) : !onApi ? (
-        <Library
-          entries={entries}
-          onOpen={(entry) => void openEntry(entry)}
-          onRemove={(entry) =>
-            void removeEntry(entry).then(() => {
-              drafts.forgetApi(entry.id);
-              requestTabs.forgetApi(entry.id);
-            })
-          }
-          onRename={(entry, title) => void library.renameEntry(entry.id, title).then(setEntries)}
-          onRefresh={(entry) => void refreshEntry(entry)}
-          onAdd={() => setShowOpen(true)}
-          connected={Boolean(session)}
-          onCheckUpdates={() => void checkForUpdates()}
-          onApplyUpdate={(entry) => void applyUpdate(entry)}
-          onRefreshMock={session ? (entry) => void doRefreshMock(entry) : undefined}
-          onMock={journey.start}
-          localMock={
-            localMocks.available
-              ? {
+          {route === "settings" ? (
+            <>
+              <SettingsView
+                section={nav.settingsSection}
+                onSection={nav.setSettingsSection}
+                content={{
+                  account: (
+                    <AccountSettings
+                      session={session}
+                      onSignIn={openSignIn}
+                      onBrowseCatalog={openCatalog}
+                      onSignOut={() => updateSession(null)}
+                      onOpenSpec0={() => void openInBrowser(session?.appUrl ?? "")}
+                    />
+                  ),
+                  network: (
+                    <NetworkSettings
+                      settings={connection}
+                      onSave={saveConnectionSettings}
+                      jar={
+                        nav.lastApisRoute === "scratch"
+                          ? { id: "__scratch__", title: "Scratch" }
+                          : current
+                            ? { id: current.id, title: current.title }
+                            : null
+                      }
+                      suggestHost={nav.suggestHost}
+                    />
+                  ),
+                  updates: <UpdateSettings updater={updater} />,
+                  appearance: (
+                    <AppearanceSettings
+                      dark={settings.dark}
+                      onDark={(dark) => patchSettings({ dark })}
+                      inspectorOpen={settings.inspectorOpen}
+                      onInspectorOpen={(inspectorOpen) => patchSettings({ inspectorOpen })}
+                    />
+                  ),
+                  mcp: <McpSettings signedIn={Boolean(session)} />,
+                  agent: <AgentChatSettings />,
+                  data: <DataSettings historyCount={requests.length} onClearHistory={clearHistory} />,
+                }}
+              />
+              <StatusBar summary="Settings · saved as you change them" envName={activeEnv?.name} result={null} />
+            </>
+          ) : route === "collections" ? (
+            <>
+              <CollectionsView api={collections} entries={entries} onGoLibrary={goLibrary} />
+              <StatusBar
+                summary="Collections · steps point at operations in your specs"
+                envName={activeEnv?.name}
+                result={null}
+              />
+            </>
+          ) : route === "mocks" ? (
+            <>
+              <MocksView
+                signedIn={Boolean(session)}
+                orgName={session?.orgName}
+                mocks={mocks.mocks}
+                loading={mocks.loading}
+                error={mocks.error}
+                onRefresh={() => void mocks.refresh()}
+                onSignIn={openSignIn}
+                onCreate={journey.startPicking}
+                keys={mocks.keys}
+                onLoadKey={mocks.loadKey}
+                onRegenerateKey={(id) => void mocks.regenerateKey(id)}
+                local={{
+                  available: localMocks.available,
+                  entries,
                   running: localMocks.running,
                   busy: localMocks.busy,
                   error: localMocks.error,
+                  invalid: localMocks.invalid,
+                  onInvalid: localMocks.setInvalid,
                   onStart: (entry) => void localMocks.start(entry),
                   onStop: (id) => void localMocks.stop(id),
+                }}
+              />
+              <StatusBar
+                summary={
+                  "Mocks · " +
+                  (localMocks.count ? `${localMocks.count} running on this computer · ` : "") +
+                  (session ? `hosted in ${session.orgName}` : "sign in to see hosted mocks")
                 }
-              : undefined
-          }
-          checking={checking}
-          syncReport={syncReport}
-          onDismissReport={() => setSyncReport(null)}
-          onTrySample={() => void ingest(SAMPLE_SPEC, SAMPLE_NAME, { kind: "sample", ref: "sample" })}
-          onOpenScratch={openScratch}
-          dragging={dragging}
-          busy={loading}
-          error={loadError}
-        />
-      ) : (
-        <>
-          <div className="panes" id={API_PANEL_ID} role="tabpanel" aria-labelledby={`api-tab-${section}`}>
-            {showSidebar && (
-            <Sidebar
-              spec={spec!}
-              tab={view === "schema" ? "schemas" : tab === "history" ? "history" : "operations"}
-              onTabChange={(next) => {
-                setTab(next);
-                setQuery("");
-              }}
-              query={query}
-              onQueryChange={setQuery}
-              selectedOperation={operation?.id ?? null}
-              onSelectOperation={(op) => {
-                setOperation(op);
-                setPrefill(null);
-                setCopiedFrom(null);
-                showView("operation");
-              }}
-              selectedSchema={schemaName}
-              onSelectSchema={(name) => {
-                setSchemaName(name);
-                showView("schema");
-              }}
-              history={apiLog}
-              selectedRecord={record?.id ?? null}
-              onOpenRecord={setRecord}
-              onOpenAllHistory={openHistory}
-              unsent={drafts.unsentOperations}
-              onOperationMenu={(op, position) =>
-                current &&
-                collections.openOperationMenu(position, {
-                  entry: current,
-                  spec: spec!,
-                  op,
-                  // The operation on screen is added as it's filled in, aimed where it's aimed.
-                  editor:
-                    op.id === operation?.id && view === "operation" && !record
-                      ? { values: currentValues(), address: server, mockUrl, auth }
-                      : null,
+                envName={activeEnv?.name}
+                result={null}
+              />
+            </>
+          ) : route === "mcp" ? (
+            <>
+              <McpView signedIn={Boolean(session)} onOpenSettings={() => nav.openSettings("mcp")} />
+              <StatusBar summary="MCP" envName={activeEnv?.name} result={null} />
+            </>
+          ) : onHistory ? (
+            <>
+              <HistoryView
+                entries={log}
+                specFor={specFor}
+                onCopy={copyRecord}
+                onClear={clearHistory}
+                onAddToCollection={(entry, position, entrySpec) => collections.openRecordMenu(position, entry, entrySpec)}
+              />
+              <StatusBar
+                summary="History · kept 30 days, only on this machine"
+                envName={activeEnv?.name}
+                result={null}
+              />
+            </>
+          ) : onScratch ? (
+            <>
+              <ScratchView
+                pad={pad}
+                onChange={updatePad}
+                vars={vars}
+                sending={sending}
+                onSend={() => void doScratchSend()}
+                history={scratchHistory}
+                onOpenRecord={setRecord}
+                record={
+                  record
+                    ? {
+                        id: record.id,
+                        view: (
+                          <HistoryDetail
+                            key={record.id}
+                            entry={record}
+                            spec={null}
+                            onCopy={copyRecord}
+                            onClose={() => setRecord(null)}
+                            onAddToCollection={(entry, position) => collections.openRecordMenu(position, entry, null)}
+                          />
+                        ),
+                      }
+                    : null
+                }
+                notice={
+                  copiedFrom && <CopiedNote at={copiedFrom} onDismiss={() => setCopiedFrom(null)} />
+                }
+                inspector={
+                  settings.inspectorOpen && (
+                    <section className="pane response">
+                      <Inspector
+                        result={result}
+                        validation={null}
+                        error={requestError}
+                        curl={curl}
+                        noSchema
+                        showHook={false}
+                        onDismissHook={() => {}}
+                      />
+                    </section>
+                  )
+                }
+              />
+              <StatusBar
+                summary="Scratch · one ad-hoc request, not saved"
+                envName={activeEnv?.name}
+                result={result}
+              />
+            </>
+          ) : !onApi ? (
+            <Library
+              entries={entries}
+              onOpen={(entry) => void openEntry(entry)}
+              onRemove={(entry) =>
+                void removeEntry(entry).then(() => {
+                  drafts.forgetApi(entry.id);
+                  requestTabs.forgetApi(entry.id);
                 })
               }
+              onRename={(entry, title) => void library.renameEntry(entry.id, title).then(setEntries)}
+              onRefresh={(entry) => void refreshEntry(entry)}
+              onAdd={() => setShowOpen(true)}
+              connected={Boolean(session)}
+              onCheckUpdates={() => void checkForUpdates()}
+              onApplyUpdate={(entry) => void applyUpdate(entry)}
+              onRefreshMock={session ? (entry) => void doRefreshMock(entry) : undefined}
+              onMock={journey.start}
+              localMock={
+                localMocks.available
+                  ? {
+                      running: localMocks.running,
+                      busy: localMocks.busy,
+                      error: localMocks.error,
+                      onStart: (entry) => void localMocks.start(entry),
+                      onStop: (id) => void localMocks.stop(id),
+                    }
+                  : undefined
+              }
+              checking={checking}
+              syncReport={syncReport}
+              onDismissReport={() => setSyncReport(null)}
+              onTrySample={() => void ingest(SAMPLE_SPEC, SAMPLE_NAME, { kind: "sample", ref: "sample" })}
+              onOpenScratch={openScratch}
+              dragging={dragging}
+              busy={loading}
+              error={loadError}
             />
-            )}
-
-            <div className="workarea">
-              {record && (
-                <HistoryDetail
-                  key={record.id}
-                  entry={record}
-                  spec={spec}
-                  onCopy={copyRecord}
-                  onClose={() => setRecord(null)}
-                  onAddToCollection={(entry, position) => collections.openRecordMenu(position, entry, spec)}
-                />
-              )}
-              {!record && (
-              <>
-              {showDocument && (
-                <DocumentView
-                  title={spec!.title || current?.title || "Document"}
-                  version={spec!.version}
-                  text={docText}
-                  converted={
-                    spec!.converted ? { text: openapiText(spec!), notes: spec!.converted.notes } : null
-                  }
-                  dark={settings.dark}
-                  tab={docTab}
-                  onTabChange={setDocTab}
-                  git={git}
-                  consumers={consumers}
-                  onOpenConsumers={() => {
-                    const apiId = current ? apiIdFromRef(current.source.ref) : null;
-                    if (apiId) void openInBrowser(consumersUrl(session?.appUrl ?? "", apiId));
-                  }}
-                  publishBlockedReason={
-                    canPublish(current?.source) ? null : whyNotPublishable(current?.source)
-                  }
-                  onPublish={startPublish}
-                />
-              )}
-
-              {showGraph && (
-                <GraphView
+          ) : (
+            <>
+              <div className="panes" id={API_PANEL_ID} role="tabpanel" aria-labelledby={`api-tab-${section}`}>
+                {showSidebar && (
+                <Sidebar
                   spec={spec!}
-                  focus={graphFocus}
-                  onFocus={setGraphFocus}
-                  panelWidth={settings.graphPanel}
-                  onPanelWidth={(graphPanel) => patchSettings({ graphPanel })}
-                  onSelectOperation={showOperation}
+                  tab={view === "schema" ? "schemas" : tab === "history" ? "history" : "operations"}
+                  onTabChange={(next) => {
+                    setTab(next);
+                    setQuery("");
+                  }}
+                  query={query}
+                  onQueryChange={setQuery}
+                  selectedOperation={operation?.id ?? null}
+                  onSelectOperation={(op) => {
+                    setOperation(op);
+                    setPrefill(null);
+                    setCopiedFrom(null);
+                    showView("operation");
+                  }}
+                  selectedSchema={schemaName}
+                  onSelectSchema={(name) => {
+                    setSchemaName(name);
+                    showView("schema");
+                  }}
+                  history={apiLog}
+                  selectedRecord={record?.id ?? null}
+                  onOpenRecord={setRecord}
+                  onOpenAllHistory={openHistory}
+                  unsent={drafts.unsentOperations}
+                  onOperationMenu={(op, position) =>
+                    current &&
+                    collections.openOperationMenu(position, {
+                      entry: current,
+                      spec: spec!,
+                      op,
+                      // The operation on screen is added as it's filled in, aimed where it's aimed.
+                      editor:
+                        op.id === operation?.id && view === "operation" && !record
+                          ? { values: currentValues(), address: server, mockUrl, auth }
+                          : null,
+                    })
+                  }
                 />
-              )}
+                )}
 
-              {view === "operation" &&
-                (operation ? (
-                  <>
-                    <UrlBar
-                      op={operation}
-                      targets={targets}
-                      specServers={spec!.servers}
-                      mockUrl={mockUrl}
-                      value={server}
-                      onChange={setServer}
-                      vars={vars}
-                      sending={sending}
-                      onSend={() => void doSend()}
-                      onSaveTarget={saveTarget}
-                      unverified={unverifiedTarget}
-                      onOpenConnection={openNetworkFor}
-                      envSkew={envVersionSkew}
+                <div className="workarea">
+                  {record && (
+                    <HistoryDetail
+                      key={record.id}
+                      entry={record}
+                      spec={spec}
+                      onCopy={copyRecord}
+                      onClose={() => setRecord(null)}
+                      onAddToCollection={(entry, position) => collections.openRecordMenu(position, entry, spec)}
                     />
-                    {askForMockKey && (
-                      <MockKeyBar
-                        apiName={current?.title ?? "this API"}
-                        onSave={(key) => void saveMockKey(key)}
-                      />
-                    )}
-                    {copiedFrom && (
-                      <CopiedNote at={copiedFrom} onDismiss={() => setCopiedFrom(null)} />
-                    )}
-                    <div className="split">
-                      <section className="pane request">
-                        <OperationView
-                          key={drafts.editorKey}
-                          spec={spec!}
+                  )}
+                  {!record && (
+                  <>
+                  {showDocument && (
+                    <DocumentView
+                      title={spec!.title || current?.title || "Document"}
+                      version={spec!.version}
+                      text={docText}
+                      converted={
+                        spec!.converted ? { text: openapiText(spec!), notes: spec!.converted.notes } : null
+                      }
+                      dark={settings.dark}
+                      tab={docTab}
+                      onTabChange={setDocTab}
+                      git={git}
+                      consumers={consumers}
+                      onOpenConsumers={() => {
+                        const apiId = current ? apiIdFromRef(current.source.ref) : null;
+                        if (apiId) void openInBrowser(consumersUrl(session?.appUrl ?? "", apiId));
+                      }}
+                      publishBlockedReason={
+                        canPublish(current?.source) ? null : whyNotPublishable(current?.source)
+                      }
+                      onPublish={startPublish}
+                    />
+                  )}
+
+                  {showGraph && (
+                    <GraphView
+                      spec={spec!}
+                      focus={graphFocus}
+                      onFocus={setGraphFocus}
+                      panelWidth={settings.graphPanel}
+                      onPanelWidth={(graphPanel) => patchSettings({ graphPanel })}
+                      onSelectOperation={showOperation}
+                    />
+                  )}
+
+                  {view === "operation" &&
+                    (operation ? (
+                      <>
+                        <UrlBar
                           op={operation}
-                          auth={auth}
-                          onAuthChange={setAuth}
-                          onValuesChange={onValuesChange}
-                          prefill={prefill}
-                          draft={drafts.draft}
-                          onEditorChange={drafts.onEditorChange}
-                          unsent={
-                            drafts.unsent
-                              ? {
-                                  onDiscard: () => {
-                                    setPrefill(null);
-                                    setCopiedFrom(null);
-                                    drafts.discard();
-                                  },
-                                }
-                              : null
-                          }
-                          onConfigureOAuth={(schemeName) => setShowOAuth({ prefill: schemeName })}
-                          oauthStatus={
-                            current?.oauth
-                              ? { ok: Boolean(oauthToken?.accessToken), label: describeExpiry(oauthToken) }
-                              : null
-                          }
+                          targets={targets}
+                          specServers={spec!.servers}
+                          mockUrl={mockUrl}
+                          value={server}
+                          onChange={setServer}
+                          vars={vars}
+                          sending={sending}
+                          onSend={() => void doSend()}
+                          onSaveTarget={saveTarget}
+                          unverified={unverifiedTarget}
+                          onOpenConnection={openNetworkFor}
+                          envSkew={envVersionSkew}
                         />
-                      </section>
-                      {inspectorVisible && (
-                        <section className="pane response">
-                          <Inspector
-                            result={result}
-                            validation={validation}
-                            error={requestError}
-                            curl={curl}
-                            restored={
-                              restored
-                                ? { sentAt: restored.sentAt, editedSince: drafts.editedSince(restored.fingerprint) }
-                                : null
-                            }
-                            onSaveBody={(type) => void saveResponseBody(type)}
-                            mockStale={mockBehind && targetingMock}
-                            onRefreshMock={
-                              session && current?.mockServerId
-                                ? () => void doRefreshMock()
-                                : undefined
-                            }
-                            showHook={!hookDismissed && !session}
-                            onDismissHook={() => setHookDismissed(true)}
+                        {askForMockKey && (
+                          <MockKeyBar
+                            apiName={current?.title ?? "this API"}
+                            onSave={(key) => void saveMockKey(key)}
                           />
-                        </section>
-                      )}
-                    </div>
+                        )}
+                        {copiedFrom && (
+                          <CopiedNote at={copiedFrom} onDismiss={() => setCopiedFrom(null)} />
+                        )}
+                        <div className="split">
+                          <section className="pane request">
+                            <OperationView
+                              key={drafts.editorKey}
+                              spec={spec!}
+                              op={operation}
+                              auth={auth}
+                              onAuthChange={setAuth}
+                              onValuesChange={onValuesChange}
+                              prefill={prefill}
+                              draft={drafts.draft}
+                              onEditorChange={drafts.onEditorChange}
+                              unsent={
+                                drafts.unsent
+                                  ? {
+                                      onDiscard: () => {
+                                        setPrefill(null);
+                                        setCopiedFrom(null);
+                                        drafts.discard();
+                                      },
+                                    }
+                                  : null
+                              }
+                              onConfigureOAuth={(schemeName) => setShowOAuth({ prefill: schemeName })}
+                              oauthStatus={
+                                current?.oauth
+                                  ? { ok: Boolean(oauthToken?.accessToken), label: describeExpiry(oauthToken) }
+                                  : null
+                              }
+                            />
+                          </section>
+                          {inspectorVisible && (
+                            <section className="pane response">
+                              <Inspector
+                                result={result}
+                                validation={validation}
+                                error={requestError}
+                                curl={curl}
+                                restored={
+                                  restored
+                                    ? { sentAt: restored.sentAt, editedSince: drafts.editedSince(restored.fingerprint) }
+                                    : null
+                                }
+                                onSaveBody={(type) => void saveResponseBody(type)}
+                                mockStale={mockBehind && targetingMock}
+                                onRefreshMock={
+                                  session && current?.mockServerId
+                                    ? () => void doRefreshMock()
+                                    : undefined
+                                }
+                                showHook={!hookDismissed && !session}
+                                onDismissHook={() => setHookDismissed(true)}
+                              />
+                            </section>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="empty">
+                        <p>This spec declares no operations.</p>
+                      </div>
+                    ))}
+
+                  {view === "schema" &&
+                    (schemaName ? (
+                      <SchemaView
+                        spec={spec!}
+                        name={schemaName}
+                        onSelectSchema={(name) => {
+                          setSchemaName(name);
+                          setTab("schemas");
+                          setView("schema");
+                        }}
+                        onSelectOperation={showOperation}
+                      />
+                    ) : (
+                      <div className="empty">
+                        <p>This spec declares no component schemas.</p>
+                      </div>
+                    ))}
                   </>
-                ) : (
-                  <div className="empty">
-                    <p>This spec declares no operations.</p>
-                  </div>
-                ))}
+                  )}
+                </div>
+              </div>
 
-              {view === "schema" &&
-                (schemaName ? (
-                  <SchemaView
-                    spec={spec!}
-                    name={schemaName}
-                    onSelectSchema={(name) => {
-                      setSchemaName(name);
-                      setTab("schemas");
-                      setView("schema");
-                    }}
-                    onSelectOperation={showOperation}
-                  />
-                ) : (
-                  <div className="empty">
-                    <p>This spec declares no component schemas.</p>
-                  </div>
-                ))}
-              </>
-              )}
-            </div>
-          </div>
-
-          <StatusBar
-            summary={
-              <>
-                {spec!.operations.length} operations · {spec!.schemas.length} schemas · {spec!.tags.length} tags
-              </>
-            }
-            envName={activeEnv?.name}
-            orgName={session?.orgName}
-            result={result}
-          />
-        </>
-      )}
+              <StatusBar
+                summary={
+                  <>
+                    {spec!.operations.length} operations · {spec!.schemas.length} schemas · {spec!.tags.length} tags
+                  </>
+                }
+                envName={activeEnv?.name}
+                orgName={session?.orgName}
+                result={result}
+              />
+            </>
+          )}
+        </div>
+        <AgentChatPanel
+          mentionChoices={chatMentions}
+          studioContext={chatContext}
+          onOpenInStudio={openFromChat}
+          onOpenSettings={() => nav.openSettings("agent")}
+        />
+      </div>
 
       {showSwitcher && (
         <ApiSwitcher
@@ -1241,12 +1281,6 @@ export default function App() {
       <UpdateDialog updater={updater} />
       <DeepLinkDialog links={deepLinks} />
       <McpHost />
-      <AgentChatPanel
-        mentionChoices={chatMentions}
-        studioContext={chatContext}
-        onOpenInStudio={openFromChat}
-        onOpenSettings={() => nav.openSettings("agent")}
-      />
       <ConsolePanel
         onOpenRun={(collectionId, runId) => {
           collections.select(collectionId);

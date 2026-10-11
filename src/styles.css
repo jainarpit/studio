@@ -127,6 +127,9 @@ input::placeholder, textarea::placeholder { color: hsl(var(--ink-3)); }
 /* Frame */
 
 .app { display: flex; flex-direction: column; height: 100%; }
+/* Below the title bar: the page, and the agent chat when it's open. */
+.app-body { flex: 1; min-height: 0; display: flex; }
+.app-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
 
 .titlebar {
   height: 38px;
@@ -2107,7 +2110,7 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
 }
 .deep-link-notice {
   position: fixed;
-  right: 16px;
+  right: calc(var(--agent-chat-space, 0px) + 16px);
   bottom: 40px;
   z-index: 45;
   display: flex;
@@ -2218,7 +2221,7 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
 
 .toast {
   position: fixed;
-  left: 50%;
+  left: calc((100% - var(--agent-chat-space, 0px)) / 2);
   bottom: 40px;
   transform: translateX(-50%);
   z-index: 45;
@@ -2257,14 +2260,15 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
 .row .collection-name { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-weight: 500; font-size: 12.5px; }
 .dirty-dot { width: 6px; height: 6px; border-radius: 50%; background: hsl(var(--warning)); flex: none; }
 
-.collection { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.collection { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; container-type: inline-size; }
 .collection-head {
   padding: 12px 16px 10px;
   border-bottom: 1px solid hsl(var(--border));
   display: grid;
   gap: 4px;
 }
-.collection-title-row { display: flex; align-items: center; gap: 8px; }
+/* Wraps in a narrow page (next to the agent chat, say) so Run stays in view. */
+.collection-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 6px; }
 .collection-title-row .spacer { flex: 1; }
 .collection-title {
   font-size: 16px;
@@ -2291,7 +2295,8 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
 .collection-body { flex: 1; min-height: 0; display: flex; margin-top: 10px; border-top: 1px solid hsl(var(--border)); }
 .collection-steps {
   width: 340px;
-  flex: 0 0 340px;
+  flex: 0 1 340px;
+  min-width: 220px;
   border-right: 1px solid hsl(var(--border));
   background: hsl(var(--surface));
   overflow-y: auto;
@@ -2392,6 +2397,27 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
 .import-vars li { display: inline-flex; align-items: center; gap: 5px; }
 
 .step-editor { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+/* A narrow collection page (next to the agent chat, say): the step list on
+   top and the step's editor below it, rather than side by side. */
+@container (max-width: 640px) {
+  .collection-body:not(.chain-body) { flex-direction: column; }
+  .collection-body:not(.chain-body) .collection-steps {
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 0;
+    max-height: 38%;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .collection .runlog { flex-direction: column; }
+  .collection .runlog > .runlog-runs {
+    width: auto;
+    flex: 0 0 auto;
+    max-height: 30%;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+}
 .step-head { padding: 10px 16px 8px; display: grid; gap: 8px; }
 .step-head-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .step-head-row .spacer { flex: 1; }
@@ -2654,6 +2680,58 @@ button.runlog-line:hover { background: hsl(var(--surface-hover)); }
   font: inherit;
   color: hsl(var(--ink-2));
 }
+.statusbar-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusbar-transport { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusbar-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 46%;
+  padding: 1px 8px;
+  border-radius: 5px;
+  font: inherit;
+  color: hsl(var(--primary));
+  background: hsl(var(--accent-soft));
+}
+.statusbar-run:hover { background: hsl(var(--surface-hover)); }
+.statusbar-run-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusbar-run-bar { flex: 0 0 64px; height: 4px; appearance: none; border: 0; border-radius: 2px; background: hsl(var(--border)); overflow: hidden; }
+.statusbar-run-bar::-webkit-progress-bar { background: hsl(var(--border)); }
+.statusbar-run-bar::-webkit-progress-value { background: hsl(var(--primary)); transition: width 200ms var(--ease); }
+.statusbar-run-bar::-moz-progress-bar { background: hsl(var(--primary)); }
+
+/* A notice when a collection run finishes, above the status bar on the page. */
+.run-notices {
+  position: absolute;
+  right: 12px;
+  bottom: 36px;
+  z-index: 44;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: min(520px, calc(100% - 24px));
+  pointer-events: none;
+}
+.run-notice {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 7px 8px 7px 12px;
+  font-size: 12.5px;
+  background: hsl(var(--bg));
+  border: 1px solid hsl(var(--border-strong));
+  border-left: 3px solid hsl(var(--success));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  animation: rise 200ms var(--ease);
+}
+.run-notice.failed { border-left-color: hsl(var(--danger)); }
+.run-notice-text { min-width: 0; overflow-wrap: anywhere; }
+.run-notice-text strong { font-weight: 600; }
 .statusbar-console:hover { background: hsl(var(--surface-hover)); color: hsl(var(--ink)); }
 .statusbar-console.on { color: hsl(var(--primary)); background: hsl(var(--accent-soft)); }
 .statusbar-badge {
@@ -2670,7 +2748,7 @@ button.runlog-line:hover { background: hsl(var(--surface-hover)); }
 .console {
   position: fixed;
   left: 0;
-  right: 0;
+  right: var(--agent-chat-space, 0px);
   bottom: 26px;
   height: min(42vh, 380px);
   z-index: 40;
@@ -3014,21 +3092,29 @@ button.runlog-line:hover { background: hsl(var(--surface-hover)); }
 .link-chip-value { min-width: 40px; }
 .collection-title-row .history-check { white-space: nowrap; }
 
-/* Agent chat: a conversation with the user's own coding agent, on the right.
-   Above the console, below the title bar, clear of the status bar. */
+/* Agent chat: a conversation with the user's own coding agent, docked on the
+   right below the title bar. The page next to it shrinks rather than sitting
+   under it; the width is set inline and can be dragged from the left edge. */
 .agent-chat {
-  position: fixed;
-  top: 38px;
-  right: 0;
-  bottom: 26px;
-  width: min(440px, 92vw);
-  z-index: 41;
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: hsl(var(--bg));
   border-left: 1px solid hsl(var(--border-strong));
-  box-shadow: var(--shadow-2);
 }
+.agent-chat-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.agent-chat-resize:hover,
+.agent-chat-resize:focus-visible { background: hsl(var(--primary) / 0.35); outline: none; }
 .agent-chat-head {
   display: flex;
   align-items: center;

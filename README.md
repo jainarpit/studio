@@ -374,6 +374,11 @@ its response is checked against that spec.
 - **Run** sends the steps one at a time, stops at the first failure (you can turn
   that off), and shows for each step whether it passed: the status it expects
   and a response that matches its spec. The run is one entry in History.
+  While a collection runs, the status bar shows which step it's on, on any page,
+  including for runs an agent started; click it to see the run. When the run
+  finishes, a notice says whether it passed, or which step failed and why, with
+  **View run**. If you started the run from that collection's page, Studio opens
+  its log.
 - **Run log.** **Runs** in a collection lists its last 20 runs. Each run's log
   shows the steps in order: when each started, its method, URL and target, the
   status, the expected status, the schema check, and whether it passed. It shows
@@ -631,7 +636,10 @@ server runs only while Studio is open.
 The Agent panel is a chat with a coding agent that's already on your computer.
 Studio doesn't run a model of its own. It starts the agent, talks to it over the
 [Agent Client Protocol](https://agentclientprotocol.com) (ACP), the same way
-editors like Zed host agents, and shows what comes back.
+editors like Zed host agents, and shows what comes back. The panel sits on the
+right and the page next to it gets narrower, so nothing is hidden behind it.
+Drag its left edge (or focus the edge and use the arrow keys) to make it wider
+or narrower; Studio remembers the width.
 
 **Choosing an agent.** Open Settings → Agent chat. Studio looks for:
 

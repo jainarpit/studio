@@ -275,6 +275,27 @@ describe("always-available tools", () => {
     expect(none.note).toMatch(/remote Spec0 MCP server/);
   });
 
+  it("search_operations lists one API's operations when there's no query", async () => {
+    const listed = json(await runTool("search_operations", { api: "Orders" }, makeDeps()));
+    expect(listed.api).toBe("Orders");
+    expect(listed.total).toBe(listed.operations.length);
+    expect(listed.operations.map((op: any) => op.operationId)).toContain("cancelOrder");
+    expect(listed.operations[0]).toEqual(
+      expect.objectContaining({ method: expect.any(String), path: expect.any(String) }),
+    );
+
+    const capped = json(await runTool("search_operations", { api: "Orders", limit: 1 }, makeDeps()));
+    expect(capped.operations).toHaveLength(1);
+    if (listed.total > 1) expect(capped.note).toMatch(/Raise limit/);
+
+    const neither = await runTool("search_operations", {}, makeDeps());
+    expect(neither.isError).toBe(true);
+    expect(output(neither)).toMatch(/Pass query, such as "create order", or api/);
+
+    const alias = json(await runTool("search_operations", { q: "cancel order" }, makeDeps()));
+    expect(alias.results[0]).toMatchObject({ operationId: "cancelOrder" });
+  });
+
   it("get_connection_status says local or signed in, and never the token", async () => {
     const local = json(await runTool("get_connection_status", {}, makeDeps()));
     expect(local).toMatchObject({ mode: "local", signedInToolsAvailable: false, studioVersion: "0.2.0" });

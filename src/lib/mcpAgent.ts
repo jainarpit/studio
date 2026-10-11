@@ -666,7 +666,7 @@ const getCollection: Tool = async (args, deps) => {
 const createCollection: Tool = async (args, deps, context) => {
   const app = requireApp(deps);
   const name = str(args, "name");
-  if (!name) throw new Error("Pass a name.");
+  if (!name) throw new Error('Pass name for the collection, such as "Orders lifecycle".');
   const source = str(args, "copy_of") ? findCollection(app.collections.list(), str(args, "copy_of")) : null;
   const base = source
     ? { ...structuredClone(source), id: newCollectionId(), name, file: undefined }

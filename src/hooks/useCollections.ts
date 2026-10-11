@@ -75,6 +75,7 @@ import { mockCredentials } from "../lib/targets";
 import { validateResponse, type ValidationResult } from "../lib/validate";
 import type { AgentRunOptions, AgentRunOutcome } from "../lib/agentApp";
 import { useRunLogs } from "./useRunLogs";
+import { describeFinished, runFinished, runProgressed, runStarted } from "../lib/runActivity";
 
 /** A run of one collection, as the view shows it. */
 export interface CollectionRunState {
@@ -902,6 +903,13 @@ export function useCollections({
       const at = new Date().toISOString();
       cancelled.current.delete(id);
       setRuns((prev) => ({ ...prev, [id]: { runId, at, running: true, results: [] } }));
+      runStarted({
+        collectionId: id,
+        runId,
+        name: original.name,
+        total: collection.steps.length,
+        ...(agent ? { startedBy: agent.startedBy } : {}),
+      });
       const specsNow = await ensureSpecs(collection);
       const keys = collection.steps.map((s) => s.key);
       const total = collection.steps.length;
@@ -1083,8 +1091,10 @@ export function useCollections({
       const results = await runSteps(collection.steps, execute, {
         stopOnFailure: collection.stopOnFailure,
         cancelled: () => cancelled.current.has(id) || Boolean(agent?.cancelled()),
-        onResult: (partial) =>
-          setRuns((prev) => ({ ...prev, [id]: { runId, at, running: true, results: partial } })),
+        onResult: (partial) => {
+          setRuns((prev) => ({ ...prev, [id]: { runId, at, running: true, results: partial } }));
+          runProgressed(id, runId, partial.length);
+        },
         run: {
           collection: logged.collection,
           environment: logged.environment,
@@ -1095,6 +1105,16 @@ export function useCollections({
         onEvent: (event) => runLogs.onEvent(logged, event),
       });
       setRuns((prev) => ({ ...prev, [id]: { runId, at, running: false, results } }));
+      runFinished({
+        collectionId: id,
+        runId,
+        name: original.name,
+        ...describeFinished(
+          results,
+          collection.steps.map((step) => step.name || step.key),
+        ),
+        ...(agent ? { startedBy: agent.startedBy } : {}),
+      });
       const summary = summariseRun(results);
       logToConsole({
         source: "collection",

@@ -88,7 +88,12 @@ Notes for working on the Agent panel. What it does for users is in the
   images are shown as their description.
 - **`src/hooks/useAgentChat.ts`** and **`src/components/agent-chat/`** are the
   panel; **`src/components/settings/AgentChatSettings.tsx`** is Settings → Agent
-  chat.
+  chat. The panel is docked: `App.tsx` puts the page (`.app-main`) and the panel
+  side by side in `.app-body`, so the page shrinks instead of sitting under it.
+  Its width is clamped by `clampChatWidth` in `src/lib/agentChatPanel.ts`, which
+  always leaves the page 580 px, and is kept in local storage per viewer. The
+  console, which spans the page, reads `--agent-chat-space` to stop where the
+  panel starts.
 
 ## Trying it without a real agent
 

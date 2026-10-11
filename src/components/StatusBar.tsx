@@ -7,6 +7,8 @@ import { consoleShortcutLabel } from "../lib/shortcuts";
 import { agentChatShortcutLabel, toggleAgentChatPanel } from "../lib/agentChatPanel";
 import { useAgentChatPanelOpen } from "../hooks/useAgentChatPanelOpen";
 import { useAppConsole } from "../hooks/useAppConsole";
+import { useActiveRuns } from "../hooks/useRunActivity";
+import { describeActive, openRun, type ActiveRun } from "../lib/runActivity";
 
 interface Props {
   /** The leading text: what is on screen. */
@@ -22,12 +24,14 @@ interface Props {
 export function StatusBar({ summary, envName, orgName, result }: Props) {
   const { open, unseenErrors } = useAppConsole();
   const chatOpen = useAgentChatPanelOpen();
+  const running = useActiveRuns();
   return (
     <div className="statusbar">
-      <span>{summary}</span>
+      <span className="statusbar-summary">{summary}</span>
+      {running.length > 0 && <RunIndicator runs={running} />}
       {envName != null && <span>env: {envName}</span>}
       {orgName != null && <span>spec0: {orgName}</span>}
-      <span style={{ marginLeft: "auto" }}>
+      <span className="statusbar-transport">
         {inTauri ? "requests via Rust · no CORS" : "browser preview · CORS applies"}
       </span>
       {result && (
@@ -58,5 +62,30 @@ export function StatusBar({ summary, envName, orgName, result }: Props) {
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * A collection running anywhere in Studio, started here or by an agent: its
+ * name, the step it's on and a progress bar. Clicking it opens its runs.
+ */
+function RunIndicator({ runs }: { runs: ActiveRun[] }) {
+  const run = runs[runs.length - 1];
+  const others = runs.length - 1;
+  const by = run.startedBy ? ` (started by ${run.startedBy})` : "";
+  return (
+    <button
+      type="button"
+      className="statusbar-run"
+      title={runs.map((r) => describeActive(r) + (r.startedBy ? ` · ${r.startedBy}` : "")).join("\n")}
+      onClick={() => openRun(run.collectionId, run.runId)}
+    >
+      <span className="statusbar-run-text">
+        {describeActive(run)}
+        {by}
+        {others > 0 ? ` · ${others} more running` : ""}
+      </span>
+      <progress className="statusbar-run-bar" max={Math.max(run.total, 1)} value={run.done} aria-hidden />
+    </button>
   );
 }
