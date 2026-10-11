@@ -262,14 +262,14 @@ describe("settings", () => {
 
   it("start with no agent, so the panel is off, and with Studio's tools on", async () => {
     stubStore({});
-    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null, studioTools: true });
+    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null, studioTools: true, instructions: true });
   });
 
   it("only take an agent Studio knows", async () => {
     stubStore({ agent: "rm -rf", workspace: "  " });
-    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null, studioTools: true });
+    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null, studioTools: true, instructions: true });
     stubStore({ agent: "gemini", workspace: "/Users/me/specs" });
-    expect(await loadAgentChatPrefs()).toEqual({ agent: "gemini", workspace: "/Users/me/specs", studioTools: true });
+    expect(await loadAgentChatPrefs()).toEqual({ agent: "gemini", workspace: "/Users/me/specs", studioTools: true, instructions: true });
   });
 
   it("turn Studio's tools off only when told to", async () => {

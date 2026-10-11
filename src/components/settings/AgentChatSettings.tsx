@@ -9,6 +9,7 @@ import {
   type AgentInfo,
 } from "../../lib/acpProcess";
 import { testAgent } from "../../lib/agentChatTest";
+import { INSTRUCTIONS_FILE, instructionsStatus, restoreInstructions, type InstructionsState } from "../../lib/agentProfile";
 import { agentChatShortcutLabel, setAgentChatPanelOpen } from "../../lib/agentChatPanel";
 import { isMac } from "../../lib/platform";
 import { inTauri } from "../../lib/request";
@@ -313,6 +314,26 @@ export function AgentChatSettings() {
         </p>
       </section>
 
+      <section className="section">
+        <h3>Studio&apos;s instructions</h3>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={prefs.instructions}
+            onChange={(event) => void settings.setPrefs({ instructions: event.target.checked })}
+          />
+          Use Spec0 instructions
+        </label>
+        <p className="field-meta">
+          Tells the agent how to work in Studio: start from the spec, try changes against a local mock, build tests as
+          collections, and never ask for secret values. A few step-by-step guides come with it. In Studio&apos;s own
+          folder they go in the file the agent reads ({prefs.agent ? INSTRUCTIONS_FILE[prefs.agent] : "AGENTS.md"});
+          in a folder you chose, Studio writes nothing and sends them with the first message instead. The text is in
+          Studio&apos;s repository, under <span className="mono">src/agent-profile</span>.
+        </p>
+        {prefs.agent && prefs.instructions && !prefs.workspace && <InstructionsStatus agent={prefs.agent} />}
+      </section>
+
       {prefs.agent === "claude" && <AnthropicKey />}
 
       <section className="section">
@@ -337,5 +358,42 @@ export function AgentChatSettings() {
         </div>
       </section>
     </>
+  );
+}
+
+/** Whether the user has edited Studio's instructions file, with a way to put Studio's version back. */
+function InstructionsStatus({ agent }: { agent: AgentId }) {
+  const [state, setState] = useState<InstructionsState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    setError(null);
+    instructionsStatus(agent)
+      .then((next) => live && setState(next))
+      .catch(() => live && setState(null));
+    return () => {
+      live = false;
+    };
+  }, [agent]);
+
+  if (state !== "edited") return null;
+  const restore = async () => {
+    try {
+      setState(await restoreInstructions(agent));
+    } catch (failed) {
+      setError(failed instanceof Error ? failed.message : String(failed));
+    }
+  };
+  return (
+    <div className="settings-actions" role="status">
+      <span className="field-meta warn">
+        You&apos;ve edited {INSTRUCTIONS_FILE[agent]} or one of the guides, so Studio leaves them as they are.
+      </span>
+      <button className="btn" onClick={() => void restore()}>
+        Restore Studio&apos;s version
+      </button>
+      {error && <span className="field-meta warn">{error}</span>}
+    </div>
   );
 }

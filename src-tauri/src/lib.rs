@@ -1,4 +1,5 @@
 mod acp;
+mod agent_profile;
 mod cookies;
 mod deep_link;
 mod git;
@@ -92,6 +93,8 @@ pub fn run() {
             acp::acp_stderr,
             acp::acp_choose_command,
             acp::acp_clear_command,
+            acp::acp_instructions_status,
+            acp::acp_instructions_restore,
         ])
         .build(tauri::generate_context!())
         .expect("error while building spec0 Studio")

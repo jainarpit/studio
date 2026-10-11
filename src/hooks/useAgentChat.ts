@@ -11,6 +11,7 @@ import {
   type McpLink,
 } from "../lib/acpClient";
 import { startAgent, type AgentId, type AgentProcess } from "../lib/acpProcess";
+import { firstMessageNote } from "../lib/agentProfile";
 import {
   EMPTY_SAVED_CHATS,
   forgetChat,
@@ -219,7 +220,7 @@ export function useAgentChat() {
 
     let process: AgentProcess;
     try {
-      process = await startAgent(agent, prefs.workspace);
+      process = await startAgent(agent, prefs.workspace, prefs.instructions);
     } catch (error) {
       setStatus("idle");
       notice(errorText(error), "error");
@@ -304,13 +305,19 @@ export function useAgentChat() {
       const entry = live.current?.chat ? live.current : await connect();
       if (!entry?.chat) return true;
       let note: string | undefined;
-      if (!entry.contextSent && context) {
-        note = studioContextNote(context, mcpRef.current === "connected");
+      if (!entry.contextSent) {
         entry.contextSent = true;
-        const shown = note;
-        setConversation((current) =>
-          current.map((item) => (item.id === userId && item.kind === "user" ? { ...item, context: shown } : item)),
+        // Studio's instructions come along when they aren't in the agent's folder.
+        note = firstMessageNote(
+          context ? studioContextNote(context, mcpRef.current === "connected") : undefined,
+          entry.process.started.instructions,
         );
+        if (note) {
+          const shown = note;
+          setConversation((current) =>
+            current.map((item) => (item.id === userId && item.kind === "user" ? { ...item, context: shown } : item)),
+          );
+        }
       }
       setStatus("working");
       let stop: StopReason | null = null;

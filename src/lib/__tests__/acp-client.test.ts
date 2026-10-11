@@ -159,7 +159,7 @@ function runFakeAgent(env: Record<string, string> = {}): AgentProcess {
   createInterface({ input: child.stdout }).on("line", (line) => __events.deliverLine(session, line));
   child.on("exit", (code) => __events.deliverExit(session, { code, stderr: "" }));
   return connectProcess(
-    { session, command: "node fake-acp-agent.mjs", cwd: process.cwd() },
+    { session, command: "node fake-acp-agent.mjs", cwd: process.cwd(), instructions: "installed" },
     async (line) => void child.stdin.write(`${line}\n`),
     { stop: async () => void child.kill(), stderr: async () => "" },
   );
@@ -293,7 +293,7 @@ describe("a session with an agent process", () => {
 
   it("fails clearly when the agent ends before answering", async () => {
     const session = nextSession++;
-    const agent = connectProcess({ session, command: "x", cwd: "/" }, async () => undefined, {
+    const agent = connectProcess({ session, command: "x", cwd: "/", instructions: "installed" }, async () => undefined, {
       stop: async () => undefined,
       stderr: async () => "",
     });
@@ -310,7 +310,7 @@ describe("lines that arrive before anyone listens", () => {
     __events.deliverLine(session, "not json, ignored");
     __events.deliverLine(session, JSON.stringify({ jsonrpc: "2.0", method: "b" }));
     __events.deliverExit(session, { code: 0, stderr: "" });
-    const agent = connectProcess({ session, command: "x", cwd: "/" }, async () => undefined, {
+    const agent = connectProcess({ session, command: "x", cwd: "/", instructions: "installed" }, async () => undefined, {
       stop: async () => undefined,
       stderr: async () => "",
     });

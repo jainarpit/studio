@@ -21,13 +21,9 @@ const MCP_TEXT: Record<McpLink, string> = {
 export async function testAgent(agent: AgentId, workspace: string | null): Promise<{ ok: boolean; text: string }> {
   let process: AgentProcess | null = null;
   try {
-    process = await startAgent(agent, workspace);
-    const [server, prefs, chatPrefs, version] = await Promise.all([
-      mcpStatus(),
-      loadMcpPrefs(),
-      loadAgentChatPrefs(),
-      currentVersion(),
-    ]);
+    const chatPrefs = await loadAgentChatPrefs();
+    process = await startAgent(agent, workspace, chatPrefs.instructions);
+    const [server, prefs, version] = await Promise.all([mcpStatus(), loadMcpPrefs(), currentVersion()]);
     const tools = chatPrefs.studioTools && server.running && server.port;
     const chat = await openChat(
       process.stream,
