@@ -13,6 +13,22 @@ Notes for working on the Agent panel. What it does for users is in the
   place `store_write` can't reach. Each agent runs in its own process group (on
   Windows, `taskkill /T`), so stopping it stops what it started, and every agent
   is stopped when Studio quits.
+- **The Anthropic API key** for Claude is stored by `src-tauri/src/secrets.rs`
+  under one fixed account, `agent-chat:anthropic-api-key`. Environment secrets
+  always have a `/` in their account and this has none, so no variable name can
+  reach it, and it isn't in the secrets index. The web view has three commands:
+  save, remove, and "is one saved?". Nothing returns the key. `acp_start` reads
+  it only when the agent is Claude and sets `ANTHROPIC_API_KEY` on that one
+  process (`agent_env`); if none is saved it passes on the one Studio was
+  started with, if any. With neither, `agent_env` returns an error and the
+  agent isn't started, so Claude Agent can't fall back to a claude.ai or Claude
+  Code sign-in. For the same reason the Claude adapter always gets
+  `--hide-claude-auth` (added in `resolve`, a chosen program included), and
+  `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR` are
+  removed from its environment. The key is replaced with `[hidden]` in the
+  agent's output lines, the error output kept for a session, and its exit
+  message (`hide_secrets`). Codex, Gemini CLI and custom agents get nothing
+  extra.
 - **`src/lib/acpProcess.ts`** turns the line events into the message stream the
   ACP library reads and writes. Lines that arrive before anything listens are
   kept until something does.
