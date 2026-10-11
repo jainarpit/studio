@@ -29,9 +29,14 @@ export interface AgentChatPrefs {
   agent: AgentId | null;
   /** The folder the agent works in. Null for Studio's own empty folder. */
   workspace: string | null;
+  /**
+   * Give the agent Studio's tools: start the local MCP server when a chat
+   * starts, if it isn't running, and connect the agent to it. On unless turned off.
+   */
+  studioTools: boolean;
 }
 
-export const DEFAULT_AGENT_CHAT_PREFS: AgentChatPrefs = { agent: null, workspace: null };
+export const DEFAULT_AGENT_CHAT_PREFS: AgentChatPrefs = { agent: null, workspace: null, studioTools: true };
 
 const AGENT_IDS: ReadonlyArray<AgentId> = ["claude", "codex", "gemini", "custom"];
 
@@ -40,6 +45,8 @@ export async function loadAgentChatPrefs(): Promise<AgentChatPrefs> {
   return {
     agent: AGENT_IDS.includes(stored.agent as AgentId) ? (stored.agent as AgentId) : null,
     workspace: typeof stored.workspace === "string" && stored.workspace.trim() ? stored.workspace : null,
+    // Only an explicit `false` turns it off.
+    studioTools: stored.studioTools !== false,
   };
 }
 
@@ -235,12 +242,143 @@ export function filterChoices(choices: MentionChoice[], query: string): MentionC
   });
 }
 
+// What's open in Studio
+
+/** What the developer has open, for the note at the start of a chat and the suggestions. */
+export interface StudioContext {
+  api?: { title: string; version?: string } | null;
+  operation?: { method: string; path: string; summary?: string } | null;
+  collection?: { name: string; steps: number; lastRun?: "passed" | "failed" | null } | null;
+}
+
+export const STUDIO_CONTEXT_URI = "studio://context";
+
+/** How a collection's last run went: failed when a step failed or it stopped early. Null while it runs, or before any. */
+export function runOutcome(log: Pick<RunLog, "finishedAt" | "counts" | "stoppedEarly"> | undefined): "passed" | "failed" | null {
+  if (!log?.finishedAt || !log.counts) return null;
+  return log.counts.failed > 0 || log.stoppedEarly ? "failed" : "passed";
+}
+
 /**
- * What a message is sent as: the text, then each attachment. As an embedded
- * resource when the agent takes them, otherwise as text with a heading.
+ * The note the first message of each chat carries: where the agent is, which
+ * tools it has, and what's open. Short, and redacted like everything else.
  */
-export function promptBlocks(text: string, mentions: Mention[], embedded: boolean): ContentBlock[] {
-  const blocks: ContentBlock[] = [{ type: "text", text: redact(text) }];
+export function studioContextNote(context: StudioContext, toolsConnected: boolean): string {
+  const lines = [
+    "You're talking to a developer inside Spec0 Studio, a desktop app for calling and testing APIs from their OpenAPI specs.",
+    toolsConnected
+      ? "Studio's tools are available to you in the MCP server named spec0-studio. Use them to look up the APIs in Studio, send requests, check responses against the spec, start local mocks, and build and run collections, rather than calling APIs some other way. The developer approves requests and other actions in Studio. Environment values appear as {{name}}; you never see secret values."
+      : "Studio's tools aren't connected in this chat, so describe what to do in Studio instead of calling them.",
+  ];
+  const open: string[] = [];
+  if (context.api) open.push(`- API: ${context.api.title}${context.api.version ? ` ${context.api.version}` : ""}`);
+  if (context.operation) {
+    const { method, path, summary } = context.operation;
+    open.push(`- Operation: ${method.toUpperCase()} ${path}${summary ? ` (${summary})` : ""}`);
+  }
+  if (context.collection) {
+    const { name, steps, lastRun } = context.collection;
+    open.push(
+      `- Collection: ${name} (${steps} step${steps === 1 ? "" : "s"}${lastRun ? `, last run ${lastRun}` : ""})`,
+    );
+  }
+  lines.push(open.length ? `Open in Studio right now:\n${open.join("\n")}` : "Nothing in particular is open in Studio right now.");
+  return redact(lines.join("\n\n"));
+}
+
+/** The note as a block: an embedded resource when the agent takes them, otherwise text. */
+export function contextBlock(note: string, embedded: boolean): ContentBlock {
+  return embedded
+    ? { type: "resource", resource: { uri: STUDIO_CONTEXT_URI, mimeType: "text/plain", text: redact(note) } }
+    : { type: "text", text: `Context from Spec0 Studio:\n\n${redact(note)}` };
+}
+
+/** A few things to ask in an empty chat, from what's open. Plain, and at most four. */
+export function chatSuggestions(context: StudioContext): string[] {
+  const out: string[] = [];
+  const { api, operation, collection } = context;
+  if (operation) out.push(`Send ${operation.method.toUpperCase()} ${operation.path} and check the response against the spec`);
+  if (api) {
+    out.push(`Test the ${api.title} against a local mock`);
+    out.push(`Build a collection that walks through the main flow of the ${api.title}`);
+  }
+  if (collection) {
+    out.push(
+      collection.lastRun === "failed"
+        ? `Why did the last run of ${collection.name} fail?`
+        : `Run ${collection.name} and explain anything that fails`,
+    );
+  }
+  if (!out.length) {
+    out.push("Which APIs do I have in Studio?");
+    out.push("Start a local mock of one of my APIs and send it a request");
+  }
+  return [...new Set(out)].slice(0, 4);
+}
+
+// Studio tool calls in the conversation
+
+/** A tool card for one of Studio's tools that made something the developer can open. */
+export interface StudioLink {
+  tool: "create_collection" | "run_collection";
+  /** The collection's id, or its name when only that is known. */
+  collection: string;
+  runId?: string;
+}
+
+/** The tool's name anywhere in the card's title or input: agents prefix it differently (`mcp__spec0-studio__…`, `spec0-studio/…`). */
+const LINKED_TOOLS = /(?<![a-z])(create_collection|run_collection)(?![a-z])/;
+
+/** Every JSON object in a tool's output, including JSON carried inside strings (as agents often wrap it). */
+function objectsIn(value: unknown, found: Record<string, unknown>[] = [], depth = 0): Record<string, unknown>[] {
+  if (depth > 6) return found;
+  if (typeof value === "string") {
+    const start = value.indexOf("{");
+    const end = value.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        objectsIn(JSON.parse(value.slice(start, end + 1)), found, depth + 1);
+      } catch {
+        // Not JSON; nothing to find in it.
+      }
+    }
+  } else if (Array.isArray(value)) {
+    for (const entry of value) objectsIn(entry, found, depth + 1);
+  } else if (value && typeof value === "object") {
+    found.push(value as Record<string, unknown>);
+    for (const entry of Object.values(value)) objectsIn(entry, found, depth + 1);
+  }
+  return found;
+}
+
+/**
+ * The collection a finished `create_collection` or `run_collection` call made
+ * or ran, read from what the card shows. Null for any other tool, a call that
+ * hasn't finished, or output Studio doesn't recognise.
+ */
+export function studioLinkFor(item: Extract<ChatItem, { kind: "tool" }>): StudioLink | null {
+  if (item.status !== "completed") return null;
+  const tool = LINKED_TOOLS.exec(`${item.title}\n${item.input ?? ""}`)?.[1] as StudioLink["tool"] | undefined;
+  if (!tool) return null;
+  const objects = objectsIn(item.output ?? "");
+  if (tool === "create_collection") {
+    const made = objects.find((object) => typeof object.id === "string" && object.id.startsWith("col_") && object.draft === true);
+    return made ? { tool, collection: made.id as string } : null;
+  }
+  const run = objects.find((object) => typeof object.runId === "string" && typeof object.collection === "string");
+  return run ? { tool, collection: run.collection as string, runId: run.runId as string } : null;
+}
+
+/**
+ * What a message is sent as: the Studio note when there is one, the text, then
+ * each attachment. As embedded resources when the agent takes them, otherwise
+ * as text with a heading.
+ */
+export function promptBlocks(text: string, mentions: Mention[], embedded: boolean, context?: string): ContentBlock[] {
+  const blocks: ContentBlock[] = [
+    ...(context ? [contextBlock(context, embedded)] : []),
+    { type: "text", text: redact(text) },
+  ];
   for (const mention of mentions) {
     const body = redact(mention.text);
     if (embedded) {

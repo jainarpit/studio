@@ -19,13 +19,15 @@ import {
   loadSavedChats,
   promptBlocks,
   saveSavedChats,
+  studioContextNote,
   type Mention,
   type SavedChat,
   type SavedChats,
+  type StudioContext,
 } from "../lib/agentChat";
 import { logAgentSession } from "../lib/appConsole";
 import { currentVersion } from "../lib/appUpdates";
-import { endpoint, loadMcpPrefs, mcpStatus, startMcp } from "../lib/mcpServer";
+import { ensureMcpRunning, loadMcpPrefs, MCP_STATE_EVENT, startMcp } from "../lib/mcpServer";
 import { redact } from "../lib/redact";
 
 /**
@@ -60,6 +62,10 @@ interface Live {
   chat: AgentChat | null;
   /** The conversation this process belongs to; a new chat makes it stale. */
   chatId: string;
+  /** The MCP server this session was given, while it's still the one running. */
+  mcpAt: { port: number; token: string } | null;
+  /** Whether this session's first message, with the note about Studio, has gone. */
+  contextSent: boolean;
 }
 
 function newChatId(): string {
@@ -76,7 +82,12 @@ export function useAgentChat() {
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [items, setItems] = useState<ChatItem[]>([]);
   const [agentName, setAgentName] = useState<string | null>(null);
-  const [mcp, setMcp] = useState<McpLink | null>(null);
+  const [mcp, setMcpState] = useState<McpLink | null>(null);
+  const mcpRef = useRef<McpLink | null>(null);
+  const setMcp = useCallback((link: McpLink | null) => {
+    mcpRef.current = link;
+    setMcpState(link);
+  }, []);
   const [saved, setSaved] = useState<SavedChats>(EMPTY_SAVED_CHATS);
 
   const live = useRef<Live | null>(null);
@@ -191,6 +202,21 @@ export function useAgentChat() {
     }
     agentRef.current = agent;
     setStatus("starting");
+
+    // Studio's tools: the local MCP server, started now if it isn't running.
+    let studioMcp: Awaited<ReturnType<typeof ensureMcpRunning>> | null = null;
+    if (prefs.studioTools) {
+      try {
+        studioMcp = await ensureMcpRunning();
+        if (studioMcp.started) logAgentSession(AGENT_NAMES[agent], "started Studio's MCP server for the chat");
+      } catch (error) {
+        notice(
+          `Couldn't start Studio's MCP server, so the agent doesn't have Studio's tools in this chat: ${errorText(error)}`,
+          "error",
+        );
+      }
+    }
+
     let process: AgentProcess;
     try {
       process = await startAgent(agent, prefs.workspace);
@@ -201,7 +227,7 @@ export function useAgentChat() {
       return null;
     }
     const owner = chatId.current;
-    const entry: Live = { process, chat: null, chatId: owner };
+    const entry: Live = { process, chat: null, chatId: owner, mcpAt: null, contextSent: false };
     live.current = entry;
 
     void process.exited.then((exit) => {
@@ -218,7 +244,7 @@ export function useAgentChat() {
       void persist();
     });
 
-    const [server, mcpPrefs, version] = await Promise.all([mcpStatus(), loadMcpPrefs(), currentVersion()]);
+    const version = await currentVersion();
     try {
       const chat = await openChat(
         process.stream,
@@ -230,7 +256,7 @@ export function useAgentChat() {
         },
         {
           cwd: process.started.cwd,
-          mcp: server.running && server.port ? { url: endpoint(server.port), token: mcpPrefs.token } : null,
+          mcp: studioMcp ? { url: studioMcp.url, token: studioMcp.token } : null,
           studioVersion: version ?? "0.0.0",
         },
       );
@@ -239,12 +265,13 @@ export function useAgentChat() {
         return null;
       }
       entry.chat = chat;
+      entry.mcpAt = studioMcp && chat.mcp === "connected" ? { port: studioMcp.port, token: studioMcp.token } : null;
       // A conversation that already has messages gets a fresh agent session: say so.
       if (itemsRef.current.some((item) => item.kind === "agent")) {
         notice("New session with the agent. It doesn't see the messages above.");
       }
       setAgentName(chat.agent.title);
-      setMcp(chat.mcp);
+      setMcp(prefs.studioTools ? chat.mcp : "disabled");
       setStatus("ready");
       logAgentSession(chat.agent.title, `session started (${process.started.command})`);
       return entry;
@@ -260,21 +287,35 @@ export function useAgentChat() {
       logAgentSession(AGENT_NAMES[agent], `didn't start: ${errorText(error)}`, "error");
       return null;
     }
-  }, [notice, cancelPermissions, persist, agentName, setConversation, onPermission, shutdown]);
+  }, [notice, cancelPermissions, persist, agentName, setConversation, onPermission, shutdown, setMcp]);
 
+  /**
+   * Send a message. The first message of each agent session also carries a
+   * short note about Studio: where the agent is, its tools, and what's open.
+   */
   const send = useCallback(
-    async (text: string, mentions: Mention[]): Promise<boolean> => {
+    async (text: string, mentions: Mention[], context?: StudioContext): Promise<boolean> => {
       if (!text.trim() || status === "starting" || status === "working") return false;
+      const userId = itemId();
       setConversation((current) => [
         ...current,
-        { kind: "user", id: itemId(), text: redact(text), mentions: mentions.map((mention) => mention.label) },
+        { kind: "user", id: userId, text: redact(text), mentions: mentions.map((mention) => mention.label) },
       ]);
       const entry = live.current?.chat ? live.current : await connect();
       if (!entry?.chat) return true;
+      let note: string | undefined;
+      if (!entry.contextSent && context) {
+        note = studioContextNote(context, mcpRef.current === "connected");
+        entry.contextSent = true;
+        const shown = note;
+        setConversation((current) =>
+          current.map((item) => (item.id === userId && item.kind === "user" ? { ...item, context: shown } : item)),
+        );
+      }
       setStatus("working");
       let stop: StopReason | null = null;
       try {
-        stop = await entry.chat.prompt(promptBlocks(text, mentions, entry.chat.embeddedContext));
+        stop = await entry.chat.prompt(promptBlocks(text, mentions, entry.chat.embeddedContext, note));
       } catch (error) {
         if (live.current === entry) notice(`The agent reported an error: ${errorText(error)}`, "error");
       }
@@ -313,7 +354,7 @@ export function useAgentChat() {
     setItems([]);
     setMcp(null);
     setStatus("idle");
-  }, [persist, shutdown]);
+  }, [persist, shutdown, setMcp]);
 
   const deleteSaved = useCallback(async (id: string) => {
     savedRef.current = forgetChat(savedRef.current, id);
@@ -321,15 +362,43 @@ export function useAgentChat() {
     await saveSavedChats(savedRef.current);
   }, []);
 
-  /** Start Studio's MCP server, so the next session can use Studio's tools. */
+  /**
+   * Start a new agent session in the same conversation, connected to Studio's
+   * tools as they are now. The agent doesn't see the earlier messages, and the
+   * conversation says so.
+   */
+  const reconnect = useCallback(async () => {
+    if (status === "starting" || status === "working") return;
+    await shutdown("reconnecting to Studio's tools");
+    setMcp(null);
+    setStatus("idle");
+    await connect();
+  }, [status, shutdown, setMcp, connect]);
+
+  /** Start Studio's MCP server, then reconnect an open chat so the agent gets its tools. */
   const startStudioMcp = useCallback(async () => {
     try {
       await startMcp(await loadMcpPrefs());
-      notice("Studio's MCP server is running. Start a new chat to give the agent its tools.");
     } catch (error) {
       notice(`Couldn't start Studio's MCP server: ${errorText(error)}`, "error");
+      return;
     }
-  }, [notice]);
+    if (live.current) await reconnect();
+    else notice("Studio's MCP server is running. The agent gets its tools when the chat starts.");
+  }, [notice, reconnect]);
+
+  // A session keeps the server it was given. If that server stops or restarts
+  // (Stop agents, a new token, a new port), the agent's connection to it is gone.
+  useEffect(() => {
+    const onState = () => {
+      const current = live.current;
+      if (!current?.chat || !current.mcpAt) return;
+      current.mcpAt = null;
+      setMcp("lost");
+    };
+    window.addEventListener(MCP_STATE_EVENT, onState);
+    return () => window.removeEventListener(MCP_STATE_EVENT, onState);
+  }, [setMcp]);
 
   // The agent goes when the panel's owner does.
   useEffect(
@@ -358,6 +427,7 @@ export function useAgentChat() {
     answer,
     deleteSaved,
     startStudioMcp,
+    reconnect,
     running: Boolean(live.current),
   };
 }

@@ -1,11 +1,25 @@
-import { AlertTriangle, Check, ChevronRight, CircleDashed, Loader2, ShieldQuestion, Wrench, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  CircleDashed,
+  Info,
+  Loader2,
+  ShieldQuestion,
+  Wrench,
+  X,
+} from "lucide-react";
 import type { ChatItem } from "../../lib/acpClient";
+import { studioLinkFor, type StudioLink } from "../../lib/agentChat";
 import { Markdown } from "./Markdown";
 
 interface Props {
   item: ChatItem;
   /** Answer a permission question. Absent for a conversation that's only being read. */
   onAnswer?: (id: string, optionId: string) => void;
+  /** Show what a Studio tool made or ran. Absent where there's nowhere to go. */
+  onOpenInStudio?: (link: StudioLink) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -23,14 +37,22 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 /** One entry in the conversation. */
-export function ChatItemView({ item, onAnswer }: Props) {
+export function ChatItemView({ item, onAnswer, onOpenInStudio }: Props) {
   switch (item.kind) {
     case "user":
       return (
         <div className="chat-user">
           <div className="chat-user-text">{item.text}</div>
-          {item.mentions.length > 0 && (
+          {(item.mentions.length > 0 || item.context) && (
             <div className="chat-chips" aria-label="Attached">
+              {item.context && (
+                <details className="chat-context">
+                  <summary className="chat-chip static" title="What this message told the agent about Studio">
+                    <Info size={10} aria-hidden /> Studio context
+                  </summary>
+                  <div className="chat-context-text">{item.context}</div>
+                </details>
+              )}
               {item.mentions.map((label) => (
                 <span key={label} className="chat-chip static">
                   @{label}
@@ -55,12 +77,26 @@ export function ChatItemView({ item, onAnswer }: Props) {
           <div className="chat-thought-text">{item.text}</div>
         </details>
       );
-    case "tool":
+    case "tool": {
+      const link = onOpenInStudio ? studioLinkFor(item) : null;
       return (
         <details className={`chat-tool ${item.status}`}>
           <summary>
             <Wrench size={12} aria-hidden />
             <span className="chat-tool-title">{item.title}</span>
+            {link && (
+              <button
+                className="btn ghost chat-tool-open"
+                onClick={(event) => {
+                  // A button inside <summary> would also open and close the card.
+                  event.preventDefault();
+                  onOpenInStudio?.(link);
+                }}
+                title={link.tool === "run_collection" ? "Show this run in Studio" : "Show this collection in Studio"}
+              >
+                Open in Studio <ArrowUpRight size={11} aria-hidden />
+              </button>
+            )}
             <span className={`chat-tool-status ${item.status}`}>
               <StatusIcon status={item.status} /> {STATUS_LABEL[item.status] ?? item.status}
             </span>
@@ -81,6 +117,7 @@ export function ChatItemView({ item, onAnswer }: Props) {
           {!item.input && !item.output && <div className="chat-tool-label">No details.</div>}
         </details>
       );
+    }
     case "plan":
       return (
         <div className="chat-plan">

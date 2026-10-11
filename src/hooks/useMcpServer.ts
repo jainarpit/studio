@@ -3,6 +3,7 @@ import type { AgentRules } from "../lib/agentPolicy";
 import {
   DEFAULT_MCP_PREFS,
   loadMcpPrefs,
+  MCP_STATE_EVENT,
   mcpStatus,
   newToken,
   saveMcpPrefs,
@@ -11,6 +12,7 @@ import {
   stopMcp,
   validPort,
   type McpPrefs,
+  type McpState,
   type McpStatus,
 } from "../lib/mcpServer";
 
@@ -37,6 +39,16 @@ export function useMcpServer() {
     return () => {
       live = false;
     };
+  }, []);
+
+  // The agent chat can start the server too; keep what this shows in step.
+  useEffect(() => {
+    const onState = (event: Event) => {
+      const { running, port } = (event as CustomEvent<McpState>).detail;
+      setStatus({ running, port });
+    };
+    window.addEventListener(MCP_STATE_EVENT, onState);
+    return () => window.removeEventListener(MCP_STATE_EVENT, onState);
   }, []);
 
   const run = useCallback(async (work: () => Promise<McpStatus>) => {

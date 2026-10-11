@@ -162,7 +162,8 @@ Studio can run a local MCP server, so coding agents such as Claude Code or
 Cursor can read the APIs in your library, including specs you haven't
 published anywhere, and test them through Studio: send requests, build and run
 collections, and start local mocks. You approve the hosts its requests go to,
-and you can see everything it did. It is off until you start it.
+and you can see everything it did. It is off until you start it, or until you
+start a chat in Studio's own [agent chat](#agent-chat).
 
 <p align="center">
   <img alt="A terminal: Claude Code asks Studio's MCP server which APIs are open, then writes a curl command for the Orders mock that reads the key from an environment variable" src=".github/assets/readme/mcp-terminal.gif" width="720"><br>
@@ -481,7 +482,8 @@ servers you point it at.
   the full address, and downloads nothing until you press Open. It only accepts
   `https` addresses on public hosts: never `localhost`, your private network,
   or an address with a password in it.
-- **The local MCP server exists only when you turn it on.** It listens on this
+- **The local MCP server exists only when you turn it on**, or when you start an
+  agent chat with Studio's tools turned on (the default). It listens on this
   computer only (`127.0.0.1`), answers only requests that carry its token, turns
   away web pages, and stops when Studio quits. It never shares secret values.
   An agent's first request to each host waits for you to allow it, and so does
@@ -562,7 +564,8 @@ your APIs, including specs you haven't published anywhere.
 The panel shows the address (`http://127.0.0.1:47321/mcp` unless that port is
 taken), a token, and setup commands to copy for Claude Code, Cursor and other
 clients. It is off until you start it. You can ask for it to start with Studio;
-that is off by default too.
+that is off by default too. Starting a chat in the [agent chat](#agent-chat)
+also starts it, unless you turned off **Give the agent Studio's tools**.
 
 **What agents can see.** The APIs in your library (titles, versions, servers,
 operations and the spec text), your environments' variable names and the values
@@ -676,10 +679,27 @@ are sent as text, with secret values replaced. When the agent wants to use one o
 its tools (to read a file or run a command, for example), the panel asks you
 first, with the choices the agent offers. **Stop** ends the current turn.
 
-**Studio's tools.** If the [local MCP server](#local-mcp-server) is running when a
-chat starts, Studio gives the agent its address and token, so the agent can use
-Studio's tools without any setup. If it isn't running, the panel says so and can
-start it.
+**Studio's tools.** When a chat starts, Studio starts the
+[local MCP server](#local-mcp-server) if it isn't running and gives the agent its
+address and token, so the agent can look up your APIs, send requests, start local
+mocks and run collections without any setup. A line at the top of the chat says
+"Studio's tools are connected", and opens to list them. Requests and other
+actions still ask you first, as they do for any agent. If the server stops or
+restarts while a chat is open (after **Stop agents**, or a new token or port),
+the chat says the tools are gone and offers **Reconnect**, which starts a new
+session with the agent. To keep Studio's tools out of chats, turn off **Give the
+agent Studio's tools** in Settings → Agent chat.
+
+The first message of each session also tells the agent that it's working inside
+Studio, that its tools are in the `spec0-studio` MCP server, and what you have
+open: the API, the operation and the collection. The message shows a **Studio
+context** chip you can open to read exactly what was sent. Secret values are
+replaced, as everywhere else.
+
+An empty chat suggests a few things to ask, based on what's open, such as
+testing the API against a local mock or asking why the last run failed. When the
+agent creates a collection or runs one through Studio's tools, its card in the
+chat has an **Open in Studio** button that takes you to it.
 
 **Where the agent works.** By default, in an empty folder of Studio's own, away
 from Studio's settings. Choose a project folder in Settings if you want the

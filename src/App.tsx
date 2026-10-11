@@ -81,7 +81,7 @@ import type { ApiSection, TopTab } from "./lib/navigation";
 import { describeExpiry } from "./lib/oauth";
 import { canPublish, whyNotPublishable } from "./lib/publish";
 import { toMarkdown } from "./lib/runner";
-import { mentionChoices } from "./lib/agentChat";
+import { mentionChoices, runOutcome, type StudioContext, type StudioLink } from "./lib/agentChat";
 import { sendTargetFor } from "./lib/shortcuts";
 import { SAMPLE_NAME, SAMPLE_SPEC } from "./lib/sample";
 import { openapiText, type OperationSpec, type ParsedSpec } from "./lib/spec";
@@ -529,6 +529,38 @@ export default function App() {
         runsFor: collections.runLogs.runsFor,
       }),
     [route, spec, current, operation, requests, collections.collections, collections.runLogs.runsFor],
+  );
+
+  /** What's open, for the note a chat starts with and the suggestions in an empty chat. */
+  const chatContext = useCallback((): StudioContext => {
+    const onApiNow = route === "api" && spec;
+    const selected = route === "collections" ? collections.selected : null;
+    return {
+      api: onApiNow ? { title: spec.title || current?.title || "Untitled API", version: spec.version || undefined } : null,
+      operation:
+        onApiNow && operation ? { method: operation.method, path: operation.path, summary: operation.summary } : null,
+      collection: selected
+        ? {
+            name: selected.name,
+            steps: selected.steps.length,
+            lastRun: runOutcome(collections.runLogs.runsFor(selected.id)[0]),
+          }
+        : null,
+    };
+  }, [route, spec, current, operation, collections.selected, collections.runLogs]);
+
+  /** Show a collection, or a run, that the agent made through Studio's tools. */
+  const { select: selectCollection, collections: collectionList, runLogs } = collections;
+  const openFromChat = useCallback(
+    (link: StudioLink) => {
+      const found =
+        collectionList.find((c) => c.id === link.collection) ?? collectionList.find((c) => c.name === link.collection);
+      setRoute("collections");
+      if (!found) return;
+      selectCollection(found.id);
+      if (link.runId) runLogs.show(found.id, link.runId);
+    },
+    [collectionList, selectCollection, runLogs, setRoute],
   );
 
   return (
@@ -1209,7 +1241,12 @@ export default function App() {
       <UpdateDialog updater={updater} />
       <DeepLinkDialog links={deepLinks} />
       <McpHost />
-      <AgentChatPanel mentionChoices={chatMentions} onOpenSettings={() => nav.openSettings("agent")} />
+      <AgentChatPanel
+        mentionChoices={chatMentions}
+        studioContext={chatContext}
+        onOpenInStudio={openFromChat}
+        onOpenSettings={() => nav.openSettings("agent")}
+      />
       <ConsolePanel
         onOpenRun={(collectionId, runId) => {
           collections.select(collectionId);

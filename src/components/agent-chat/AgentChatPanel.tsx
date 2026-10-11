@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, AtSign, History, MessageSquarePlus, Settings, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, AtSign, History, MessageSquarePlus, RefreshCw, Settings, Square, Trash2, X } from "lucide-react";
 import { AGENT_NAMES, useAgentChat } from "../../hooks/useAgentChat";
 import { useAgentChatSettings } from "../../hooks/useAgentChatSettings";
 import { useAgentChatPanelOpen } from "../../hooks/useAgentChatPanelOpen";
@@ -9,7 +9,16 @@ import {
   setAgentChatPanelOpen,
   toggleAgentChatPanel,
 } from "../../lib/agentChatPanel";
-import { filterChoices, type Mention, type MentionChoice, type SavedChat } from "../../lib/agentChat";
+import {
+  chatSuggestions,
+  filterChoices,
+  type Mention,
+  type MentionChoice,
+  type SavedChat,
+  type StudioContext,
+  type StudioLink,
+} from "../../lib/agentChat";
+import { MCP_TOOLS } from "../../lib/mcp";
 import { isMac } from "../../lib/platform";
 import { inTauri } from "../../lib/request";
 import { ChatItemView } from "./ChatItemView";
@@ -17,8 +26,15 @@ import { ChatItemView } from "./ChatItemView";
 interface Props {
   /** What the @ menu can attach right now: operations, responses, steps, runs. */
   mentionChoices: () => MentionChoice[];
+  /** What's open in Studio right now, for the note a chat starts with and the suggestions. */
+  studioContext: () => StudioContext;
+  /** Show a collection, or one of its runs, that the agent made through Studio's tools. */
+  onOpenInStudio: (link: StudioLink) => void;
   onOpenSettings: () => void;
 }
+
+/** The names of Studio's tools, for the line that says they're connected. */
+const TOOL_NAMES = MCP_TOOLS.map((tool) => tool.name);
 
 const KIND_LABEL: Record<MentionChoice["kind"], string> = {
   operation: "Operation",
@@ -40,7 +56,7 @@ const STATUS_TEXT = {
  * Settings, on the right of the window. Always mounted, so a conversation
  * survives closing the panel; the agent process lives as long as the chat does.
  */
-export function AgentChatPanel({ mentionChoices, onOpenSettings }: Props) {
+export function AgentChatPanel({ mentionChoices, studioContext, onOpenInStudio, onOpenSettings }: Props) {
   const open = useAgentChatPanelOpen();
   const chat = useAgentChat();
   const settings = useAgentChatSettings();
@@ -116,7 +132,13 @@ export function AgentChatPanel({ mentionChoices, onOpenSettings }: Props) {
     setMentions([]);
     setMenu(null);
     pinned.current = true;
-    await chat.send(text, attached);
+    await chat.send(text, attached, studioContext());
+  };
+
+  const suggest = (text: string) => {
+    if (busy) return;
+    pinned.current = true;
+    void chat.send(text, [], studioContext());
   };
 
   const onDraftChange = (value: string, caret: number) => {
@@ -187,7 +209,7 @@ export function AgentChatPanel({ mentionChoices, onOpenSettings }: Props) {
               </div>
               <div className="agent-chat-items">
                 {reading.items.map((item) => (
-                  <ChatItemView key={item.id} item={item} />
+                  <ChatItemView key={item.id} item={item} onOpenInStudio={onOpenInStudio} />
                 ))}
               </div>
             </>
@@ -232,31 +254,29 @@ export function AgentChatPanel({ mentionChoices, onOpenSettings }: Props) {
           ) : chat.items.length === 0 ? (
             <div className="agent-chat-empty">
               <p>
-                Ask {agentLabel ?? "the agent"} about the APIs open in Studio. Type <kbd>@</kbd> to attach an
-                operation, a response, a collection step or a run log.
+                Ask {agentLabel ?? "the agent"} to call, test or mock the APIs in Studio. Type <kbd>@</kbd> to attach
+                an operation, a response, a collection step or a run log.
               </p>
+              <div className="agent-chat-suggestions" aria-label="Suggestions">
+                {chatSuggestions(studioContext()).map((text) => (
+                  <button key={text} className="agent-chat-suggestion" onClick={() => suggest(text)} disabled={busy}>
+                    {text}
+                  </button>
+                ))}
+              </div>
               <p className="field-meta">
-                The agent starts when you send the first message. What you send goes to the agent and its model
-                provider; secret values from your environments are replaced by their names first.
+                {prefs.studioTools
+                  ? "The agent starts when you send the first message, with Studio's tools connected. "
+                  : "The agent starts when you send the first message. Studio's tools are turned off in Settings. "}
+                What you send goes to the agent and its model provider; secret values from your environments are
+                replaced by their names first.
               </p>
             </div>
           ) : (
             <div className="agent-chat-items">
-              {chat.mcp === "server-off" && (
-                <div className="chat-notice info">
-                  Studio&apos;s MCP server is off, so the agent can&apos;t use Studio&apos;s tools in this chat.{" "}
-                  <button className="btn ghost" onClick={() => void chat.startStudioMcp()}>
-                    Start it
-                  </button>
-                </div>
-              )}
-              {chat.mcp === "unsupported" && (
-                <div className="chat-notice info">
-                  This agent can&apos;t connect to an MCP server over HTTP, so it can&apos;t use Studio&apos;s tools.
-                </div>
-              )}
+              <ToolsLine chat={chat} />
               {chat.items.map((item) => (
-                <ChatItemView key={item.id} item={item} onAnswer={chat.answer} />
+                <ChatItemView key={item.id} item={item} onAnswer={chat.answer} onOpenInStudio={onOpenInStudio} />
               ))}
             </div>
           )}
@@ -375,6 +395,59 @@ export function AgentChatPanel({ mentionChoices, onOpenSettings }: Props) {
       )}
     </aside>
   );
+}
+
+/** One line at the top of a chat: whether the agent has Studio's tools, and what to do if not. */
+function ToolsLine({ chat }: { chat: ReturnType<typeof useAgentChat> }) {
+  const busy = chat.status === "starting" || chat.status === "working";
+  switch (chat.mcp) {
+    case "connected":
+      return (
+        <details className="chat-tools">
+          <summary>
+            <span className="mcp-dot on" aria-hidden /> Studio&apos;s tools are connected
+          </summary>
+          <ul className="chat-tools-list mono">
+            {TOOL_NAMES.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        </details>
+      );
+    case "lost":
+      return (
+        <div className="chat-notice info" role="status">
+          Studio&apos;s MCP server stopped or restarted, so the agent no longer has Studio&apos;s tools.{" "}
+          <button className="btn ghost" onClick={() => void chat.reconnect()} disabled={busy}>
+            <RefreshCw size={12} /> Reconnect
+          </button>
+        </div>
+      );
+    case "server-off":
+      return (
+        <div className="chat-notice info" role="status">
+          The agent doesn&apos;t have Studio&apos;s tools in this chat, because Studio&apos;s MCP server isn&apos;t
+          running.{" "}
+          <button className="btn ghost" onClick={() => void chat.startStudioMcp()} disabled={busy}>
+            Start it and reconnect
+          </button>
+        </div>
+      );
+    case "disabled":
+      return (
+        <div className="chat-notice info" role="status">
+          Studio&apos;s tools are turned off for chats, in Settings → Agent chat.
+        </div>
+      );
+    case "unsupported":
+      return (
+        <div className="chat-notice info" role="status">
+          This agent can&apos;t connect to an MCP server over HTTP, so it can&apos;t use Studio&apos;s tools.
+        </div>
+      );
+    default:
+      return null;
+  }
 }
 
 /** Shown until an agent is chosen: the ones found, to pick one here or in Settings. */

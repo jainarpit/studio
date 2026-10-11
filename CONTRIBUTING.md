@@ -313,7 +313,10 @@ request, and refuses any `Host` other than its own loopback address and any
 browser `Origin`, which is what stops a web page reaching it through DNS
 rebinding. Studio makes no request you didn't ask for, and a listening socket is
 the same kind of promise, so the server doesn't start by itself unless the user
-turned on "start when Studio opens" (off by default).
+turned on "start when Studio opens" (off by default). The one other start is
+the agent chat: when the user sends the first message of a chat with "Give the
+agent Studio's tools" on (the default, and said in Settings and in the empty
+chat), the chat starts the server so the agent it just started can use it.
 
 Agents can send requests, run collections and start local mocks through Studio,
 because that is how a developer working through an agent tests an API. What

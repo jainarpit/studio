@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatItem } from "../acpClient";
 import {
   AGENT_CHAT_STORE,
+  chatSuggestions,
   chatTitle,
+  contextBlock,
   EMPTY_SAVED_CHATS,
   filterChoices,
   forgetChat,
@@ -21,7 +23,11 @@ import {
   promptBlocks,
   responseMention,
   runMention,
+  runOutcome,
+  STUDIO_CONTEXT_URI,
   stepMention,
+  studioContextNote,
+  studioLinkFor,
   type SavedChat,
 } from "../agentChat";
 import { isAgentChatShortcut } from "../agentChatPanel";
@@ -254,16 +260,23 @@ describe("settings", () => {
     vi.stubGlobal("window", { localStorage: { getItem: (key: string) => data.get(key) ?? null, setItem: () => undefined } });
   };
 
-  it("start with no agent, so the panel is off", async () => {
+  it("start with no agent, so the panel is off, and with Studio's tools on", async () => {
     stubStore({});
-    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null });
+    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null, studioTools: true });
   });
 
   it("only take an agent Studio knows", async () => {
     stubStore({ agent: "rm -rf", workspace: "  " });
-    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null });
+    expect(await loadAgentChatPrefs()).toEqual({ agent: null, workspace: null, studioTools: true });
     stubStore({ agent: "gemini", workspace: "/Users/me/specs" });
-    expect(await loadAgentChatPrefs()).toEqual({ agent: "gemini", workspace: "/Users/me/specs" });
+    expect(await loadAgentChatPrefs()).toEqual({ agent: "gemini", workspace: "/Users/me/specs", studioTools: true });
+  });
+
+  it("turn Studio's tools off only when told to", async () => {
+    stubStore({ agent: "codex", studioTools: false });
+    expect((await loadAgentChatPrefs()).studioTools).toBe(false);
+    stubStore({ agent: "codex", studioTools: "no" });
+    expect((await loadAgentChatPrefs()).studioTools).toBe(true);
   });
 });
 
@@ -283,5 +296,127 @@ describe("the shortcut", () => {
     expect(isAgentChatShortcut(press({ ctrlKey: true }), { mac: true })).toBe(false);
     expect(isAgentChatShortcut(press({ ctrlKey: true }), { mac: false })).toBe(true);
     expect(isAgentChatShortcut(press({ metaKey: true, shiftKey: false }), { mac: true })).toBe(false);
+  });
+});
+
+describe("the note a chat starts with", () => {
+  const open = {
+    api: { title: "Orders API", version: "1.2.0" },
+    operation: { method: "post", path: "/orders", summary: "Create an order" },
+    collection: { name: "Checkout", steps: 4, lastRun: "failed" as const },
+  };
+
+  it("says where the agent is, which tools it has, and what's open", () => {
+    const note = studioContextNote(open, true);
+    expect(note).toContain("inside Spec0 Studio");
+    expect(note).toContain("MCP server named spec0-studio");
+    expect(note).toContain("- API: Orders API 1.2.0");
+    expect(note).toContain("- Operation: POST /orders (Create an order)");
+    expect(note).toContain("- Collection: Checkout (4 steps, last run failed)");
+  });
+
+  it("says so when the tools aren't connected, and when nothing is open", () => {
+    const note = studioContextNote({}, false);
+    expect(note).toContain("aren't connected");
+    expect(note).not.toContain("spec0-studio");
+    expect(note).toContain("Nothing in particular is open");
+  });
+
+  it("never carries a secret value", () => {
+    withSecret();
+    const note = studioContextNote({ api: { title: `Orders ${SECRET}` } }, true);
+    expect(note).not.toContain(SECRET);
+    expect(note).toContain("{{apiKey}}");
+  });
+
+  it("goes first, as an embedded resource when the agent takes them and as text otherwise", () => {
+    const embedded = promptBlocks("test it", [], true, "the note");
+    expect(embedded[0]).toEqual({
+      type: "resource",
+      resource: { uri: STUDIO_CONTEXT_URI, mimeType: "text/plain", text: "the note" },
+    });
+    expect(embedded[1]).toEqual({ type: "text", text: "test it" });
+    expect(contextBlock("the note", false)).toEqual({ type: "text", text: "Context from Spec0 Studio:\n\nthe note" });
+    expect(promptBlocks("test it", [], true)).toEqual([{ type: "text", text: "test it" }]);
+  });
+});
+
+describe("suggestions in an empty chat", () => {
+  it("follow what's open", () => {
+    expect(
+      chatSuggestions({
+        api: { title: "Orders API" },
+        operation: { method: "get", path: "/orders/{id}" },
+      }),
+    ).toEqual([
+      "Send GET /orders/{id} and check the response against the spec",
+      "Test the Orders API against a local mock",
+      "Build a collection that walks through the main flow of the Orders API",
+    ]);
+  });
+
+  it("ask about a failed run", () => {
+    expect(chatSuggestions({ collection: { name: "Checkout", steps: 3, lastRun: "failed" } })).toEqual([
+      "Why did the last run of Checkout fail?",
+    ]);
+    expect(chatSuggestions({ collection: { name: "Checkout", steps: 3, lastRun: null } })).toEqual([
+      "Run Checkout and explain anything that fails",
+    ]);
+  });
+
+  it("have something to offer when nothing is open, and never more than four", () => {
+    expect(chatSuggestions({}).length).toBe(2);
+    const all = chatSuggestions({
+      api: { title: "A" },
+      operation: { method: "get", path: "/x" },
+      collection: { name: "C", steps: 1 },
+    });
+    expect(all.length).toBe(4);
+  });
+});
+
+describe("a collection run's outcome", () => {
+  it("is failed when a step failed or the run stopped early, and unknown while it runs", () => {
+    const done = { finishedAt: "2026-10-12T10:00:00Z", counts: { total: 3, passed: 3, failed: 0, skipped: 0 } };
+    expect(runOutcome(done)).toBe("passed");
+    expect(runOutcome({ ...done, counts: { ...done.counts, passed: 2, failed: 1 } })).toBe("failed");
+    expect(runOutcome({ ...done, stoppedEarly: true })).toBe("failed");
+    expect(runOutcome({ counts: done.counts })).toBeNull();
+    expect(runOutcome(undefined)).toBeNull();
+  });
+});
+
+describe("tool cards for Studio's tools", () => {
+  const card = (title: string, output: string, extra: Partial<Extract<ChatItem, { kind: "tool" }>> = {}) =>
+    ({ kind: "tool", id: "t", toolCallId: "c", title, status: "completed", output, ...extra }) as Extract<
+      ChatItem,
+      { kind: "tool" }
+    >;
+  const created = JSON.stringify({ id: "col_abc123", name: "Checkout", draft: true, steps: [] });
+  const ran = JSON.stringify({ collection: "Checkout", runId: "run_9", summary: "3 passed", passed: true });
+
+  it("link to the collection an agent created", () => {
+    expect(studioLinkFor(card("mcp__spec0-studio__create_collection", created))).toEqual({
+      tool: "create_collection",
+      collection: "col_abc123",
+    });
+  });
+
+  it("read the result when the agent wraps it, as MCP clients do", () => {
+    const wrapped = JSON.stringify({ content: [{ type: "text", text: created }], isError: false }, null, 2);
+    expect(studioLinkFor(card("Tool: spec0-studio/create_collection", wrapped))).toMatchObject({
+      collection: "col_abc123",
+    });
+  });
+
+  it("link to the run an agent started, found by the tool name in the input", () => {
+    const item = card("Calling a tool", ran, { input: JSON.stringify({ server: "spec0-studio", tool: "run_collection" }) });
+    expect(studioLinkFor(item)).toEqual({ tool: "run_collection", collection: "Checkout", runId: "run_9" });
+  });
+
+  it("don't link a call that hasn't finished, another tool, or output Studio doesn't recognise", () => {
+    expect(studioLinkFor(card("create_collection", created, { status: "in_progress" }))).toBeNull();
+    expect(studioLinkFor(card("send_request", created))).toBeNull();
+    expect(studioLinkFor(card("create_collection", "Couldn't create it."))).toBeNull();
   });
 });

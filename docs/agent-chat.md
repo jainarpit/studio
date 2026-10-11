@@ -34,8 +34,8 @@ Notes for working on the Agent panel. What it does for users is in the
   kept until something does.
 - **`src/lib/acpClient.ts`** speaks the protocol with
   [`@agentclientprotocol/sdk`](https://www.npmjs.com/package/@agentclientprotocol/sdk)
-  (pinned): `initialize`, `session/new` with Studio's MCP server when it's
-  running, `session/prompt`, `session/cancel`, and answers to
+  (pinned): `initialize`, `session/new` with Studio's MCP server when the chat
+  has one, `session/prompt`, `session/cancel`, and answers to
   `session/request_permission`. Studio declines the file system and terminal
   client capabilities, so agents use their own tools and ask before they do.
   `applyUpdate` folds `session/update` notifications into the conversation.
@@ -44,7 +44,23 @@ Notes for working on the Agent panel. What it does for users is in the
   content security policy blocks. `npm run test:csp` runs a chat under the real
   policy to catch this.
 - **`src/lib/agentChat.ts`** has the settings, the `@` attachments (always
-  redacted), what a message is sent as, and the kept conversations.
+  redacted), what a message is sent as, and the kept conversations. It also
+  writes the note about Studio that the first message of each session carries
+  (`studioContextNote`, sent as a `studio://context` resource, or as text when
+  the agent doesn't take resources), the suggestions an empty chat shows, and
+  `studioLinkFor`, which reads a finished `create_collection` or
+  `run_collection` card's output for its **Open in Studio** button. Agents name
+  MCP tools differently in their cards (`mcp__spec0-studio__create_collection`,
+  `spec0-studio/run_collection`), so it matches the tool name anywhere in the
+  title or input.
+- **Studio's tools.** With **Give the agent Studio's tools** on (the default),
+  `connect` in `useAgentChat` calls `ensureMcpRunning` in
+  `src/lib/mcpServer.ts`, which starts the local MCP server with the saved port
+  and token when it isn't running. `startMcp` and `stopMcp` announce every start
+  and stop with `MCP_STATE_EVENT`; a session that was given the server treats
+  any of them as losing it (a stop, a restart or a new token all end the agent's
+  MCP session) and the panel offers **Reconnect**. The Claude and Codex adapters
+  both accept HTTP MCP servers and embedded resources.
 - **`src/lib/markdown.ts`** reads agent messages into plain data that the panel
   renders as React elements, never HTML. Only `http(s)` links are links, and
   images are shown as their description.
