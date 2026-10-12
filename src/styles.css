@@ -1768,6 +1768,43 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
 }
 .nav-tab:focus-visible { outline-offset: -4px; }
 
+/* Agent: the way into the agent chat, labelled so it's easy to find. Filled in
+   while the panel is open; a dot shows a running chat, amber while the agent
+   waits for an answer. */
+.agent-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--primary) / 0.45);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--accent-soft));
+  white-space: nowrap;
+  transition: background var(--fast), color var(--fast), border-color var(--fast);
+}
+.agent-btn:hover { border-color: hsl(var(--primary)); }
+.agent-btn.on { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: hsl(var(--primary-fg)); }
+.agent-btn svg { flex: none; }
+.agent-btn-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px hsl(var(--surface));
+}
+.agent-btn-dot.running { background: hsl(var(--success)); }
+.agent-btn-dot.waiting { background: hsl(var(--warning)); animation: agent-btn-pulse 1.4s ease-in-out infinite; }
+@keyframes agent-btn-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .agent-btn-dot.waiting { animation: none; } }
+
 /* Settings: a quiet icon, with a small dot when certificate checks are off
    somewhere. */
 .settings-btn { position: relative; }
@@ -1832,7 +1869,8 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
   .titlebar { gap: 8px; }
   .titlebar .brand-product { display: none; }
   .env-picker select { max-width: 110px; }
-  .conn-chip { max-width: 150px; }
+  .conn-chip { max-width: 130px; }
+  .nav-tab { padding: 0 8px; }
   .apibar .api-switch { max-width: 190px; }
   .segment { padding: 3px 9px; }
 }
@@ -2169,7 +2207,19 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
   white-space: nowrap;
 }
 .local-mock-live.compact { font-size: 11px; }
-.local-mock-live .local-mock-address { font-family: var(--font-mono); }
+.local-mock-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: copy;
+}
+.local-mock-state { color: hsl(var(--ink-2)); }
+.local-mock-state::before { content: "·"; margin-right: 5px; color: hsl(var(--ink-3)); }
 .local-mock-live .icon-btn { color: hsl(var(--ink-2)); }
 .local-mock-error {
   color: hsl(var(--danger));
@@ -3132,11 +3182,49 @@ button.runlog-line:hover { background: hsl(var(--surface-hover)); }
   background: hsl(var(--accent-soft));
   color: hsl(var(--ink-2));
 }
-.agent-chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+.agent-chat-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px; }
 .agent-chat-empty { color: hsl(var(--ink-2)); font-size: 12.5px; display: grid; gap: 10px; line-height: 1.5; }
 .agent-chat-empty kbd { font-family: var(--font-mono); padding: 0 4px; border: 1px solid hsl(var(--border-strong)); border-radius: 4px; }
-.agent-chat-picks { display: flex; flex-wrap: wrap; gap: 6px; }
-.agent-chat-items { display: grid; gap: 10px; }
+/* "Set up your agent", in the chat panel until an agent is chosen and connects. */
+.agent-setup { display: grid; gap: 10px; font-size: 12.5px; line-height: 1.5; color: hsl(var(--ink)); }
+.agent-setup p { margin: 0; }
+.agent-setup-title { margin: 0; font-size: 14px; font-weight: 600; }
+.agent-setup h3 { margin: 4px 0 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: hsl(var(--ink-3)); }
+.agent-setup-list { display: grid; gap: 8px; }
+.agent-setup-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+}
+.agent-setup-row.chosen { border-color: hsl(var(--primary) / 0.5); }
+.agent-setup-row.missing { background: transparent; }
+.agent-setup-row-head { display: flex; align-items: center; gap: 8px; }
+.agent-setup-row-head .spacer { flex: 1; }
+.agent-setup-row .settings-actions { flex-wrap: wrap; }
+.agent-setup-row .settings-actions input { flex: 1 1 160px; min-width: 0; }
+.agent-setup-row .settings-facts { margin: 0; }
+.agent-setup code.mono, .agent-setup .field-meta code.mono { font-size: 11.5px; overflow-wrap: anywhere; }
+.setup-command {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 8px;
+  border-radius: 6px;
+  background: hsl(var(--surface-hover));
+}
+.setup-command code { flex: 1; min-width: 0; }
+.agent-setup-result { display: grid; gap: 6px; }
+.agent-setup-result strong { display: inline-flex; align-items: center; gap: 5px; }
+.agent-setup-result .spin { vertical-align: -2px; }
+.agent-setup-links { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* minmax(0, 1fr): a grid track otherwise grows to its widest item (a long code
+   line or URL), and a right-aligned message then spills off the left edge. */
+.agent-chat-items { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.agent-chat-items > * { min-width: 0; }
 .agent-chat-reading { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .agent-chat-history { list-style: none; display: grid; gap: 2px; }
 .agent-chat-history li { display: flex; align-items: center; gap: 6px; }
@@ -3154,6 +3242,7 @@ button.runlog-line:hover { background: hsl(var(--surface-hover)); }
 
 .chat-user {
   justify-self: end;
+  min-width: 0;
   max-width: 88%;
   padding: 7px 10px;
   border-radius: 10px 10px 2px 10px;
@@ -3310,7 +3399,10 @@ button.runlog-line:hover { background: hsl(var(--surface-hover)); }
 .agent-chat-menu-empty { padding: 8px; font-size: 12px; color: hsl(var(--ink-3)); }
 
 /* Markdown in agent messages. */
-.md { display: grid; gap: 7px; }
+.md { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; min-width: 0; }
+.md > * { min-width: 0; }
+.md table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.md th, .md td { border: 1px solid hsl(var(--border)); padding: 3px 6px; text-align: left; }
 .md h3, .md h4, .md h5, .md h6 { font-size: 13px; font-weight: 600; margin-top: 4px; }
 .md ul, .md ol { padding-left: 18px; display: grid; gap: 2px; }
 .md blockquote { border-left: 2px solid hsl(var(--border-strong)); padding-left: 9px; color: hsl(var(--ink-2)); }

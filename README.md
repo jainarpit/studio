@@ -172,12 +172,13 @@ start a chat in Studio's own [agent chat](#agent-chat).
 
 ### Chat with your coding agent inside Studio
 
-If you'd rather not switch to a terminal, the **Agent** panel (`⇧⌘J`) talks to a
-coding agent you already use, such as Claude, Codex or Gemini CLI. Studio starts
-the agent on your computer and gives it the local MCP server's tools. Type `@` to
-attach the operation you're looking at, a response, a collection step or a run
-log, and answer the agent's permission requests in the panel. It is off until you
-choose an agent in Settings. See [Agent chat](#agent-chat).
+If you'd rather not switch to a terminal, press **Agent** in the top bar (or
+`⇧⌘J`) to talk to a coding agent you already use, such as Claude, Codex or
+Gemini CLI. Studio starts the agent on your computer and gives it the local MCP
+server's tools. Type `@` to attach the operation you're looking at, a response, a
+collection step or a run log, and answer the agent's permission requests in the
+panel. The first time you open it, the panel walks you through choosing and
+connecting an agent. See [Agent chat](#agent-chat).
 
 <details>
 <summary>More screenshots</summary>
@@ -641,7 +642,18 @@ right and the page next to it gets narrower, so nothing is hidden behind it.
 Drag its left edge (or focus the edge and use the arrow keys) to make it wider
 or narrower; Studio remembers the width.
 
-**Choosing an agent.** Open Settings → Agent chat. Studio looks for:
+**Setting it up.** Press **Agent** at the right of the top bar, or `⇧⌘J`
+(`Ctrl+Shift+J` on Windows and Linux). Until an agent is chosen, the panel shows
+**Set up your agent**: the agents Studio found on this computer, how each one
+signs in, and what to install for the ones it didn't find, with the command to
+copy. Pick one and Studio tests the connection straight away. If it connects,
+**Start chatting**; if not, the panel says what to do next, such as signing in
+to the agent in a terminal or saving an Anthropic API key. Settings → Agent chat
+has the same choices and the rest of the options, and the two always agree. A
+dot on the **Agent** button shows a running chat, and turns amber while the
+agent is waiting for your answer, even with the panel closed.
+
+**Choosing an agent.** Studio looks for:
 
 | Agent | What Studio runs |
 |---|---|

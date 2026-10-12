@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Laptop, Loader2, Square } from "lucide-react";
 
 interface Props {
@@ -13,18 +14,38 @@ interface Props {
 }
 
 /**
- * Start or stop the local mock for one API. While it runs, shows its address
- * with a live dot, so it's clear something on this computer is listening.
+ * Start or stop the local mock for one API. While it runs, it says so in words
+ * ("Local mock · Running") with a live dot, so it isn't mistaken for the MCP
+ * server or any other address. The address is in the tooltip, and a click
+ * copies it.
  */
 export function LocalMockControl({ port, busy, error, onStart, onStop, compact = false }: Props) {
+  const [copied, setCopied] = useState(false);
   if (port !== null) {
+    const address = `http://127.0.0.1:${port}`;
+    const copy = () => {
+      void navigator.clipboard
+        ?.writeText(address)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        })
+        .catch(() => {});
+    };
     return (
-      <span
-        className={`local-mock-live${compact ? " compact" : ""}`}
-        title={`A local mock of this API is running at http://127.0.0.1:${port}, on this computer only`}
-      >
-        <span className="live-dot" aria-hidden />
-        <span className="local-mock-address">127.0.0.1:{port}</span>
+      <span className={`local-mock-live${compact ? " compact" : ""}`}>
+        <button
+          type="button"
+          className="local-mock-label"
+          onClick={copy}
+          title={`Local mock running at ${address}, on this computer only. Click to copy the address.`}
+          aria-label={`Local mock running at ${address}. Copy the address`}
+        >
+          <span className="live-dot" aria-hidden />
+          <Laptop size={compact ? 11 : 12} aria-hidden />
+          <span>Local mock</span>
+          <span className="local-mock-state">{copied ? "Copied" : "Running"}</span>
+        </button>
         <button
           className="icon-btn tight"
           onClick={onStop}

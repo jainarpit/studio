@@ -241,6 +241,13 @@ describe("always-available tools", () => {
     expect(past.isError).toBe(true);
   });
 
+  it("get_operation also reads operationId and operation, the names agents often use", async () => {
+    for (const key of ["operationId", "operation"]) {
+      const found = json(await runTool("get_operation", { api: "Orders", [key]: "getOrder" }, makeDeps()));
+      expect(found.operationId).toBe("getOrder");
+    }
+  });
+
   it("get_operation finds by operationId or by method and a concrete path", async () => {
     const byId = json(await runTool("get_operation", { api: "Orders", operation_id: "getOrder" }, makeDeps()));
     expect(byId.method).toBe("GET");

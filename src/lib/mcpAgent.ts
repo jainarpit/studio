@@ -23,7 +23,7 @@ import type { HistoryEntry } from "./history";
 import { checkFields, fingerprint } from "./history";
 import { documentUrlOf, type LibraryEntry } from "./library";
 import { localMockUrl } from "./localMockServer";
-import { findApi, findOperation, specFor, type ToolResult } from "./mcp";
+import { findApi, findOperation, specFor, type ToolResult, operationSelector } from "./mcp";
 import { buildPlan, describeBody, type AuthState, type RequestPlan, type ResponseResult, type Transport } from "./request";
 import { declaredResponse, storedResponseBody } from "./response";
 import { describeSkip, describeSummary, isSafeMethod, planRun, summarise, type RunResult } from "./runner";
@@ -281,7 +281,7 @@ async function prepareRequest(args: Json, deps: AgentToolDeps, app: AgentApp): P
 
   const entry = findApi(await deps.loadLibrary(), str(args, "api"));
   const spec = await specFor(entry, deps);
-  const selector = { operationId: str(args, "operation_id"), method: str(args, "method"), path: str(args, "path") };
+  const selector = operationSelector(args);
   if (!selector.operationId && !(selector.method && selector.path)) throw new Error("Pass operation_id, or both method and path.");
   const op = findOperation(spec.operations, selector);
   if (!op) throw new Error(`No operation ${selector.operationId ?? `${selector.method} ${selector.path}`} in ${entry.title}. search_operations finds one.`);
@@ -688,7 +688,7 @@ const addStep: Tool = async (args, deps, context) => {
   const app = requireApp(deps);
   const entry = findApi(await deps.loadLibrary(), str(args, "api"));
   const spec = await specFor(entry, deps);
-  const selector = { operationId: str(args, "operation_id"), method: str(args, "method"), path: str(args, "path") };
+  const selector = operationSelector(args);
   if (!selector.operationId && !(selector.method && selector.path)) throw new Error("Pass operation_id, or both method and path.");
   const op = findOperation(spec.operations, selector);
   if (!op) throw new Error(`No operation ${selector.operationId ?? `${selector.method} ${selector.path}`} in ${entry.title}.`);
