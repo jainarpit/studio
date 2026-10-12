@@ -1,0 +1,55 @@
+---
+title: Console and logs
+description: See what Studio did in this session, from requests to collection runs, local mock traffic, agent activity and chat sessions, in one place.
+docType: how-to
+---
+
+The **console** is a live log of this session: every request as it's sent and answered, collection
+runs, requests to your local mocks, calls from coding agents, and agent chat sessions. Use it to see what happened when
+something doesn't look right.
+
+## Open the console
+
+Press **Console** in the status bar at the bottom of the window, or `⇧⌘Y` (`Ctrl+Shift+Y` on
+Windows and Linux). A badge on the button counts errors that arrived while the console was closed.
+
+<Screenshot
+  src="/images/product/studio-console.webp"
+  alt="The console with filters for All, Requests, Collections, Local mock, MCP and Errors. Entries show requests with their status and time, a collection run starting and finishing with 2 passed and 1 failed, a local mock request with a warning that a query parameter should be an integer, and two MCP tool calls, one of which failed."
+  caption="One session in the console: requests, a collection run, a local mock warning, and MCP calls. Errors are highlighted."
+  width={1600}
+  height={572}
+  minWidth={640}
+/>
+
+## What it shows
+
+| Kind | What's recorded |
+|---|---|
+| **Requests** | Method, URL, status and time. |
+| **Collections** | Each run starting and finishing, with **Open log** to jump to its [run log](/docs/studio/collections/running#the-run-log). |
+| **Local mock** | Each request a [local mock](/docs/studio/local-mocks) answered: method, path, status, and any warnings about the request. |
+| **MCP** | Each tool a coding agent called through the [MCP server](/docs/studio/mcp), which agent called it, and whether it worked. Never its arguments. |
+| **Agent chat** | Each [agent chat](/docs/studio/agent-chat) starting and ending, with the agent's name. Never what was said. |
+
+Requests and collection runs an agent asked for say which agent.
+
+Filter by kind, show only **Errors**, or type in **Filter** to search. **Copy** copies what's shown;
+**Clear** empties it.
+
+<Callout title="Good to know">
+- The console is kept in memory only, and is gone when Studio quits. It's never saved or sent
+  anywhere.
+- It keeps the last 1,000 entries.
+- Secret values are replaced by their `{{name}}`.
+</Callout>
+
+## Other logs
+
+| Log | Where | Kept for |
+|---|---|---|
+| [History](/docs/studio/requests#history) | **History** in the top bar | 30 days |
+| [Run logs](/docs/studio/collections/running#the-run-log) | **Runs** in a collection | The last 20 runs per collection |
+| Console | The status bar | This session |
+
+All of them stay on your computer.

@@ -1,0 +1,52 @@
+---
+title: Mock servers
+description: Stand-ins for an API that answer from its spec. Run one on your computer, or host one on Spec0 for your team.
+docType: how-to
+---
+
+A **mock server** is a stand-in for a real API. It has its own address and answers requests with
+example responses built from the spec. Use one to build a frontend, try a client, or run a
+collection before the real API exists, or while it's down.
+
+Studio has two kinds.
+
+## Which one to use
+
+| | Local mock | Hosted mock |
+|---|---|---|
+| **Runs** | On your computer, while Studio is open | On Spec0, all the time |
+| **Who can call it** | Programs on your computer, and web pages served from `localhost` | Anyone with its address and key |
+| **Needs a Spec0 account** | No | Yes |
+| **Needs the spec published** | No: any spec in your library | Yes, to your organisation |
+| **Starts** | In one click | Through a short guided dialog |
+| **Good for** | Your own work: a frontend on `localhost`, a collection step, a test run | Sharing with your team, CI, or anyone not on your computer |
+
+- **Start with a local mock** when it's just you. It needs nothing but the spec.
+- **Use a hosted mock** when someone else, or something else, needs to call it.
+
+You can have both for the same API. The address bar's target menu lists each one, labelled.
+
+- [Local mock servers](/docs/studio/local-mocks)
+- [Hosted mock servers](/docs/studio/hosted-mocks)
+
+## What a mock answers with
+
+Both kinds answer each operation with the spec's own examples wherever the spec has them, then
+build the rest from the schema: property examples, defaults, enum values, and values that fit each
+field's type and format. So the more examples your spec has, the more realistic the answers are. A
+spec with no examples still gets a working mock.
+
+Mocks answer from examples, so they're for trying calls and building against, not for testing
+logic: a local mock, for instance, doesn't keep state, so a `POST` doesn't change what the next
+`GET` returns.
+
+## The Mocks tab
+
+**Mocks** in the top bar lists both kinds:
+
+- **On this computer**: the local mocks that are running, a way to start one for any API in your
+  library, and how local mocks treat requests that don't match the spec.
+- **Hosted**: your organisation's hosted mocks, when you're signed in, with each one's API, version
+  and address, and its key.
+
+A green dot on the Mocks tab means a local mock is running.

@@ -1,0 +1,106 @@
+---
+title: Privacy and security
+description: What Studio sends, what it keeps on your computer, and how it protects secrets and the servers it runs.
+docType: reference
+---
+
+Studio is often used with private, internal APIs, so it talks only to the servers you point it at.
+This page lists what it sends, what it keeps, and how the parts that listen on your computer are
+protected.
+
+## What Studio sends
+
+- **Your requests only.** No telemetry, analytics or crash reporting.
+- **Spec0 only when signed in**, and then only what you ask for, such as your
+  organisation's APIs or creating a hosted mock. History, environments, secrets, collections and
+  logs are never synced.
+- **Update checks on request**, or on start if you turn that on. It's one request to
+  github.com and sends nothing about your work.
+- **Agent requests, after you allow them.** An agent using the
+  [local MCP server](/docs/studio/mcp) can send requests through Studio, but each new host waits for
+  your answer, and you can block hosts outright. See
+  [Approving what agents do](/docs/studio/mcp#approving-what-agents-do).
+- **Agent chat messages.** What you type and attach in the
+  [agent chat](/docs/studio/agent-chat) goes to that agent and from there to its model provider, with
+  secret values replaced by their `{{name}}`. The chat is off until you choose an agent, and the
+  agent starts only when you send a message. Studio never sees your sign-in to the agent. An
+  Anthropic API key for Claude Agent, if you save one, is kept in the credential store and given
+  only to the Claude agent.
+- **No requests from the reference view.** The rendered reference is given the spec's text, never a
+  URL, and the window blocks its network requests. A remote image in a spec's description isn't
+  loaded, because loading it would tell the spec's author that you opened it.
+
+A Content Security Policy in Studio's window blocks any other network requests from the interface,
+whatever a bundled library tries to do.
+
+## What Studio keeps, and where
+
+Everything is on your computer. **Settings → Data & privacy** shows the folder.
+
+| What | Kept |
+|---|---|
+| Your library (copies of your specs), environments, settings | Until you remove them |
+| Request tabs, and unsent changes | Until you close the tab, or discard or send the changes |
+| History | 30 days. **Clear history** deletes it all. |
+| Collection run logs | The last 20 runs per collection |
+| Console, and the MCP tab's agent activity | Memory only, for this session |
+| Agent chats | The last 30, with secret values replaced |
+| Cookies | Memory only, per API, for this session |
+| Secret values | Your system's credential store |
+
+## Secrets
+
+- **One place for secrets.** Auth values aren't stored per API. They go in an environment, where
+  you mark them secret.
+- **The credential store.** Secret values go in the macOS Keychain, Windows Credential Manager, or
+  the Secret Service on Linux. See [Where secrets are kept](/docs/studio/auth-environments#where-secrets-are-kept).
+- **Never written down.** History, error messages, saved unsent changes, collection files, run
+  logs, the console, agent activity, saved chats and exported reports show `{{name}}` instead of the
+  value. An auth value typed
+  straight into a request is kept only until Studio quits.
+- **Safe to commit.** Environment files and collection files note that a secret exists, not its
+  value.
+
+<Callout type="warn">
+If there's no credential store (mostly on Linux with no keyring running, or a locked one), Studio
+keeps secret values in a local file that isn't encrypted, and says so in the Environments dialog.
+They move to the credential store the next time Studio starts and can reach it.
+</Callout>
+
+## Certificates
+
+Certificate checks can't be turned off for everything at once. You can trust a private CA, or skip
+checks, for one host at a time, and Studio marks requests to that host as **unverified**. See
+[Network settings](/docs/studio/network#certificates).
+
+## Links from web pages
+
+A `spec0://` link can be sent by any web page, so Studio asks before doing anything. It shows the
+API's name, the host it would download from and the full address, and downloads nothing until you
+press **Open**. It only accepts `https` addresses on public hosts. See
+[Open in Studio links](/docs/studio/library#open-in-studio-links).
+
+## Servers Studio runs on your computer
+
+Studio can run two kinds of server. Both are off until you start them, listen on `127.0.0.1` only
+(other computers can't reach them), and stop when Studio quits.
+
+| | Local MCP server | Local mock |
+|---|---|---|
+| **Who can call it** | Programs that have its token | Programs on your computer, and web pages served from `localhost` |
+| **Web pages** | Refused | Refused, unless served from `localhost` or `127.0.0.1` |
+| **Shares secret values** | Never. Secret variables are listed by name only, and Studio fills them in when it sends a request. | Not applicable: it answers from the spec |
+| **Sends requests** | Only to hosts you allow, at most the number per minute you set | No |
+
+See [Local MCP server](/docs/studio/mcp#security) and [Local mock servers](/docs/studio/local-mocks).
+
+## Reporting a security problem
+
+Please report security problems privately, as described in the repository's
+[security policy](https://github.com/spec-0/studio/blob/main/SECURITY.md), rather than in a public
+issue.
+
+<Callout title="Good to know">
+Studio is allowed to make HTTP requests to any host, because an API client has to reach whatever
+address you give it.
+</Callout>

@@ -1,0 +1,31 @@
+{
+  "title": "Studio",
+  "pages": [
+    "---Get started---",
+    "install",
+    "first-request",
+    "---Work with APIs---",
+    "library",
+    "requests",
+    "auth-environments",
+    "checking-responses",
+    "schemas",
+    "schema-graph",
+    "document",
+    "collections",
+    "---Mock servers---",
+    "mocks",
+    "local-mocks",
+    "hosted-mocks",
+    "---Connect---",
+    "connect",
+    "mcp",
+    "agent-chat",
+    "---Reference---",
+    "console",
+    "shortcuts",
+    "network",
+    "privacy",
+    "troubleshooting"
+  ]
+}

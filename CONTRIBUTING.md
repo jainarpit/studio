@@ -119,6 +119,19 @@ the plugin back.
 - Anything touching auth, secrets, or the works-without-an-account rule needs a
   test that would fail if the rule were broken.
 
+## Improving the docs
+
+The user guide at [docs.spec0.io/docs/studio](https://docs.spec0.io/docs/studio)
+is written in [docs/user](docs/user/), next to the code. When a change alters
+what a user sees or does, update the page that describes it in the same pull
+request.
+
+[docs/user/README.md](docs/user/README.md) explains how pages map to the site,
+which components you can use and where images go. Run `npm run check:docs`
+before you push; CI runs the same check on any pull request that touches
+`docs/user`. The site picks up merged changes when it's next synced, normally
+with each release.
+
 ## Design rules, and why
 
 **No secrets stored per API.** Auth values go in an environment as secret

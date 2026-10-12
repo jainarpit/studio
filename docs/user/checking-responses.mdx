@@ -1,0 +1,66 @@
+---
+title: Checking responses
+description: How Studio checks each response against the spec, what the results mean, and how to check a whole tag at once.
+docType: how-to
+---
+
+Studio checks every JSON response against the schema the spec declares for it. This page explains
+the results, and how to run a whole tag or spec against a server in one go.
+
+## The check on each response
+
+When a response comes back, Studio looks up the schema the spec declares for the status code you
+actually got, and compares the body with it. The status code is matched the way OpenAPI describes:
+the exact code first (`404`), then its range (`4XX`), then `default`.
+
+| Result | What it means |
+|---|---|
+| **Matches the declared schema** | The body fits what the spec promises. |
+| **Extra fields** | The body has a field the spec never mentions. This is drift. |
+| **Missing required fields** | The body leaves out a field the schema marks as required. |
+| **Type mismatches** | A field is there, but has the wrong type. |
+| **No schema declared** | The spec doesn't describe this response, so there's nothing to check against. |
+
+Each finding points at the exact JSON path, such as `items[0].sku`.
+
+The extra-fields result is the one to watch. A response that has quietly grown a field is often
+the first sign that an API and its spec have drifted apart, and most API clients won't tell you.
+
+The result is saved in [History](/docs/studio/requests#history) with the request. You can
+re-check an old response against the current spec later.
+
+<Callout title="Good to know">
+- Only JSON bodies are checked. Headers, content types, and status codes the spec doesn't list
+  aren't checked yet.
+- When a request went to a hosted mock that's behind your spec, the response pane says so, so an
+  old mock isn't mistaken for drift.
+</Callout>
+
+## Checking a whole tag: Run against the spec
+
+Checking one response answers "did this call work?". Before a release, the question is "does any of
+this still match the spec?". **Run** in the API bar opens **Run against the spec**, which sends
+every operation in a tag, or in the whole spec, and checks each response.
+
+Each operation gets a result: matched, mismatched (with the differences), errored, or skipped.
+Nobody writes the checks: they're the same schema check, so they stay right as the spec changes.
+
+It's careful by design:
+
+- **No invented values.** Required parameters come from your active environment, by name. An
+  operation whose values aren't there is skipped, and the row says which variable to set.
+- **Read-only by default.** `POST`, `PUT`, `PATCH` and `DELETE` run only
+  if you tick **Include methods that change state**, and the count is shown before you start.
+- **One request at a time.** You can cancel at any point.
+
+**Copy report** gives Markdown for a pull request or an issue, with skipped operations listed.
+Every request is also in History, tagged with its run.
+
+For a fixed sequence of calls, such as create an order, get it, then pay for it, use a
+[collection](/docs/studio/collections) instead.
+
+## Large specs
+
+Studio looks up `$ref` references only when it needs them, rather than expanding the whole spec up
+front. On Stripe's public spec (7.6 MB, 589 operations, 1440 schemas), reading the spec takes about
+30 ms on our machines. That's also why schemas that refer to themselves don't cause problems.

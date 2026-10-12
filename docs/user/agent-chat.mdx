@@ -1,0 +1,127 @@
+---
+title: Agent chat
+description: Chat with a coding agent you already use, such as Claude, Codex or Gemini CLI, in a panel inside Studio, with the operation, response or run log you're looking at attached.
+docType: how-to
+---
+
+The **Agent** panel is a chat with a coding agent that's on your computer. Studio doesn't run a
+model of its own. It starts the agent, talks to it over the
+[Agent Client Protocol](https://agentclientprotocol.com) (ACP), which is how editors such as Zed
+host agents, and shows what comes back.
+
+If the [local MCP server](/docs/studio/mcp) is running, the agent also gets Studio's tools, so it
+can send requests, run collections and start local mocks for you, with the same approvals as an
+agent in your terminal.
+
+The panel is **off by default**. It stays off until you choose an agent.
+
+## Choose an agent
+
+Open **Settings → Agent chat** (`⌘,`, or `Ctrl+,` on Windows and Linux) and pick one under
+**Agent**.
+
+| Agent | What Studio runs | How it signs in |
+|---|---|---|
+| **Claude Agent** | Anthropic's Claude Agent SDK, through its ACP adapter | An Anthropic API key you save in Settings (see below) |
+| **Codex** | Codex, through its ACP adapter | Run `codex login` in a terminal first |
+| **Gemini CLI** | `gemini --acp` | Run `gemini` in a terminal first and choose how to sign in |
+| **Another agent** | Any program you choose that speaks ACP | However that agent's documentation says |
+
+Claude Agent and Codex use an adapter package. If the adapter isn't installed, Studio runs it with
+`npx`, pinned to a version Studio was tested with. That needs Node.js, and the first start takes a
+moment while it downloads. Gemini CLI has to be installed (`npm install -g @google/gemini-cli`).
+
+For Codex and Gemini CLI, signing in happens in the agent, not in Studio, and Studio never sees
+your sign-in.
+
+### An API key for Claude Agent
+
+Claude Agent runs on an Anthropic API key. When you choose it, Settings shows an **Anthropic API
+key** field. Paste the key and press **Save**.
+
+- Studio keeps the key in your system's credential store (the macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux), not in a settings file.
+- It gives the key only to the Claude agent, as `ANTHROPIC_API_KEY`, when a chat starts. Once it's
+  saved, Studio's window can't read it back; Settings just says **Saved**. Paste a new key to
+  replace it, or press **Remove**.
+- If you haven't saved a key, Studio uses an `ANTHROPIC_API_KEY` it was started with, from a
+  terminal for example. A key set only in your shell profile doesn't reach Studio when you open it
+  from the Dock, which is what the field is for.
+- With neither, Claude Agent doesn't start, and the panel tells you to add a key in Settings.
+- Claude Agent always runs on that key. Studio never uses a claude.ai or Claude Code sign-in for it.
+- If the key ever shows up in what the agent writes, Studio shows `[hidden]` in its place.
+
+Next to each agent, Settings says whether Studio found it: **Installed**, runs with `npx`, or
+**Not found on this computer**. **Test the connection** starts the agent, opens a session and
+stops it again, without sending anything.
+
+### Choosing the program by hand
+
+Apps started from the Dock or a launcher don't get your terminal's `PATH`, so Studio also looks in
+the usual install folders (Homebrew, `~/.local/bin`, npm's global folder, nvm, Volta and others). If
+it still can't find the program, or you want **Another agent**, choose the program's full path and
+its arguments. Studio shows the exact command and asks you to confirm it before saving.
+
+### The folder the agent works in
+
+By default the agent works in an empty folder of Studio's own, away from Studio's settings. To let
+it work on your specs, choose a project folder under **Folder**.
+
+## Open the panel
+
+Press **Agent** in the status bar, or `⇧⌘J` (`Ctrl+Shift+J` on Windows and Linux). The panel opens
+on the right.
+
+The agent starts when you send your first message. If Studio's MCP server was off when the chat
+started, the panel says so and has a **Start it** button. Start a new chat afterwards to give the
+agent Studio's tools. Without them, the agent can still chat.
+
+## Attach what you're looking at
+
+Type `@`, or press the **@** button, to attach:
+
+- the operation on screen, or another one from the open API
+- one of your last five responses
+- a step from a collection
+- one of the last few run logs of a collection
+
+Attachments are sent to the agent as text, with secret values replaced by their `{{name}}`.
+
+## Permissions
+
+When the agent wants to use one of its own tools, for example to read a file or run a command, the
+panel asks you first and shows the choices the agent offers. Studio doesn't give the agent access
+to your files or a terminal itself.
+
+When the agent uses Studio's tools, Studio asks in its own dialog, the same way it does for any
+agent. See [Approving what agents do](/docs/studio/mcp#approving-what-agents-do).
+
+## Stop, end and start again
+
+- **Stop** stops what the agent is doing now. The chat stays open.
+- **End chat** stops the agent. The chat is kept.
+- **New chat** ends the current chat and starts a fresh one.
+
+Quitting Studio stops every agent it started.
+
+## Past chats
+
+Studio keeps your last 30 chats on this computer, with secret values replaced. Open them from
+**Past chats** at the top of the panel to read them again, or delete them there.
+
+A past chat can be read but not continued. Sending a message starts a new session, and the agent
+doesn't see the earlier messages.
+
+## What leaves your computer
+
+What you type and attach goes to the agent you chose, and from there to its model provider. Nothing
+else does: the panel sends nothing until you send a message, and Studio doesn't send your chats
+anywhere. See [Privacy and security](/docs/studio/privacy).
+
+<Callout title="Good to know">
+- Agent chat is new. It has been tested with a stand-in agent much more than with real ones, and
+  the ACP adapters it runs are young. Please [open an issue](https://github.com/spec-0/studio/issues)
+  if an agent doesn't work.
+- The [console](/docs/studio/console) records each chat starting and ending, with the agent's name.
+  It never records what was said.
+</Callout>

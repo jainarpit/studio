@@ -1,0 +1,143 @@
+---
+title: Collections
+description: Run a sequence of requests, across one or more APIs, with every step checked against its own spec.
+docType: how-to
+---
+
+A **collection** is a list of steps that run in order, such as create an order, get it, then pay for
+it. Each step points at an operation in one of your specs, so its response is checked against that
+spec. One collection can use several APIs.
+
+This page covers building a collection. The other pages in this section cover
+[passing values between steps](/docs/studio/collections/chaining),
+[running and run logs](/docs/studio/collections/running),
+[files and git](/docs/studio/collections/files), and
+[importing from Postman](/docs/studio/collections/postman).
+
+## How collections differ from other clients'
+
+In most API clients, a collection holds its own copy of each request. In Studio, a step holds only
+its own values (parameters, headers, body, and where to send it) and points at the operation in the
+spec for everything else. So:
+
+- each step's response is checked against its spec, like any other request
+- when a spec changes, Studio can tell you which steps no longer match it
+- the spec stays the one place the API is described
+
+## Create a collection
+
+Open **Collections** in the top bar and press **+**, or choose **Add to collection ▸ New
+collection…** on an operation. Studio asks for a name first.
+
+To rename a collection, click its name in the header. Right-click a collection in the list for
+**Rename…** and **Delete…**. Deleting asks first.
+
+## Add steps
+
+<Steps>
+<Step>
+
+Open an API and fill in the request the way you want it in the collection: parameters, body, and
+target.
+
+</Step>
+<Step>
+
+Right-click the operation in the list (or press `Shift+F10`) and choose **Add to collection ▸**
+and the collection.
+
+</Step>
+<Step>
+
+Repeat for each step. The steps can come from different APIs.
+
+</Step>
+</Steps>
+
+The step is added with what you had filled in and where it was aimed. A request in
+[History](/docs/studio/requests#history) can be added too, with **Add to a collection**; it keeps the
+values it was sent with.
+
+<Screenshot
+  src="/images/product/studio-step-list.webp"
+  alt="A collection's step list with eight steps across the Orders and Payments APIs. Some steps show 'expects 201', 'expects 404' or 'expects any 4xx', two are marked 'changed', and the last is marked 'not in any spec'."
+  caption="A step list. Badges show a step's expected status, a step whose spec has changed, and a plain request that isn't linked to a spec."
+  width={681}
+  height={900}
+  maxWidth={420}
+/>
+
+## Edit a step
+
+Select a step to edit it. Its header has:
+
+| Field | What it's for |
+|---|---|
+| **Key** | The step's name in references, such as `createOrder` in `{{steps.createOrder.body.id}}`. |
+| **Name** | A readable name, shown in the list and in run logs. |
+| **Expects** | The status that counts as a pass. Empty means any 2xx. See [Expected status](/docs/studio/collections/running#expected-status). |
+| **Send to** | Where this step goes: one of the API's servers, its hosted mock, its local mock, or a URL you type. |
+
+Below that, **Request** holds the step's inputs, in the same editor as any other request, and
+**Response** shows its last response.
+
+Each step has its own target. So one step can call a real staging server while the next calls a
+[local mock](/docs/studio/local-mocks) of an API that doesn't exist yet. A step aimed at a local
+mock needs that mock to be running; Studio doesn't start it for you, and the step says so.
+
+## Reorder and remove steps
+
+- **Drag** a step, or use `Alt+↑` and `Alt+↓`.
+- **The step menu** (right-click a step, or its **⋯** button) has **Change operation…**,
+  **Take a value from an earlier step…**, **Duplicate**, **Move up**, **Move down** and
+  **Remove step**.
+- **Delete** removes the selected step while the step list has focus. **Undo** puts it back.
+
+If later steps take values from the step you're moving or removing, Studio says which links would
+break and asks first.
+
+## Steps, Chain and Runs
+
+The collection header has three views:
+
+| View | What it shows |
+|---|---|
+| **Steps** | The step list and the selected step's request and response. |
+| **Chain** | How values pass from step to step. See [Passing values between steps](/docs/studio/collections/chaining). |
+| **Runs** | The last 20 runs and their logs. See [Running a collection](/docs/studio/collections/running). |
+
+## Collections made by agents
+
+A coding agent using the [local MCP server](/docs/studio/mcp) can build a collection for you. It
+appears in the list as a **draft** while the agent adds steps, with a banner that names the agent.
+Choose **Keep** to make it yours, or **Discard** to delete it.
+
+Agents can change only their own drafts. A collection you made or kept, they can read and run, but
+not change. See [Collections agents build](/docs/studio/mcp#collections-agents-build).
+
+## When a spec changes
+
+Studio compares each step with the current spec. A step that no longer matches is marked
+**changed**, and the step says what changed, for example:
+
+- the operation moved or was renamed
+- a parameter the step sets was removed, or a new one became required
+- the body is missing a field the spec now requires
+- the server the step targets is no longer in the spec
+
+A step whose operation is gone can be pointed at another one with **Change operation…**.
+
+## Steps that aren't in a spec
+
+A step can also be a plain request with a URL, not linked to any operation. This happens when you
+import a request that matches no spec in your library. It's marked **not in any spec**. It runs,
+but its response isn't checked. **Link to an operation…** in the step menu links it once you've added
+the API.
+
+<Callout title="Good to know">
+- Collections run in Studio only. There's no command-line runner yet.
+- A step that uses OAuth uses the token Studio already holds for that API and environment. Get one
+  from the API's Auth section first.
+- Studio doesn't run scripts. Pass values with [links](/docs/studio/collections/chaining) and check
+  status codes with [Expects](/docs/studio/collections/running#expected-status).
+</Callout>

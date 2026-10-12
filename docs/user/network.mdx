@@ -1,0 +1,46 @@
+---
+title: Network settings
+description: Reach internal APIs behind a private certificate authority or a corporate proxy, and set timeouts, redirects and cookies.
+docType: how-to
+---
+
+Internal APIs often sit behind a corporate proxy, or use a certificate no public authority signed.
+**Settings → Network** (`⌘,`, or `Ctrl+,`) is where you set those up, along with timeouts,
+redirects and cookies.
+
+## Certificates
+
+There are two ways to reach a host whose certificate comes from a private certificate authority
+(CA):
+
+| Option | What it does |
+|---|---|
+| **Trust with a CA bundle** | Point Studio at the CA's PEM file. Certificates are still checked, against a root you supplied. Use this one. |
+| **Skip verification** | No checking at all, for that host. For when there's no bundle to hand. |
+
+Both are set **per host**. There's no switch that turns checking off everywhere, so a choice made
+for one internal service doesn't quietly cover the rest of the internet.
+
+While a host has verification off:
+
+- requests to it show an **unverified** badge in the address bar. Click it to open the setting.
+- the **Settings** button in the top bar shows a small red dot.
+
+## Proxy
+
+By default Studio uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` from your environment, the same
+as other tools on your computer. You can set a proxy by hand instead, with its own bypass list, or
+turn proxies off.
+
+## Timeouts, redirects and cookies
+
+- **Timeout.** How long a request can take before Studio gives up.
+- **Redirects.** Followed by default, up to ten. When one is followed, the response pane says so,
+  and where the answer came from.
+- **Cookies.** Kept per API, so a session from one API never reaches another's host. They're kept
+  in memory while Studio is open, never written to disk. You can see and clear them here.
+
+<Callout title="Good to know">
+The [update check](/docs/studio/install#updates) uses the proxy setting, but not the certificate
+settings.
+</Callout>
