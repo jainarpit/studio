@@ -111,6 +111,19 @@ function str(args: Json, key: string): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+/**
+ * Which operation a tool call names. The schema says `operation_id`, but agents
+ * often write `operationId` or `operation`, so those are read too rather than
+ * failing a call whose meaning is clear.
+ */
+export function operationSelector(args: Json): { operationId?: string; method?: string; path?: string } {
+  return {
+    operationId: str(args, "operation_id") ?? str(args, "operationId") ?? str(args, "operation"),
+    method: str(args, "method"),
+    path: str(args, "path"),
+  };
+}
+
 function int(args: Json, key: string): number | undefined {
   const value = args[key];
   return typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : undefined;
@@ -365,7 +378,7 @@ const getApiSpec: Tool = async (args, deps) => {
 const getOperation: Tool = async (args, deps) => {
   const entry = findApi(await deps.loadLibrary(), str(args, "api"));
   const spec = await specFor(entry, deps);
-  const selector = { operationId: str(args, "operation_id"), method: str(args, "method"), path: str(args, "path") };
+  const selector = operationSelector(args);
   if (!selector.operationId && !(selector.method && selector.path)) {
     throw new ToolFailure("Pass operation_id, or both method and path.");
   }
