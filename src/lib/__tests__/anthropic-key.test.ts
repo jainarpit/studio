@@ -28,11 +28,11 @@ describe("the Anthropic API key for Claude Agent", () => {
     expect(readers).toEqual([]);
   });
 
-  it("isn't part of starting an agent: the web view names the agent and Rust adds the key for Claude", async () => {
+  it("isn't part of starting an agent: the web view names the agent (and whether to use Studio's instructions), and Rust adds the key for Claude", async () => {
     invoke.mockResolvedValue({ session: 1, command: "claude-agent-acp", cwd: "/tmp" });
     await acp.startAgent("claude", null);
     const start = invoke.mock.calls.find(([command]) => command === "acp_start");
-    expect(start?.[1]).toEqual({ agent: "claude", cwd: null });
+    expect(start?.[1]).toEqual({ agent: "claude", cwd: null, instructions: true });
   });
 
   it("is what the sign-in hint for Claude points to", () => {

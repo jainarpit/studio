@@ -696,6 +696,23 @@ open: the API, the operation and the collection. The message shows a **Studio
 context** chip you can open to read exactly what was sent. Secret values are
 replaced, as everywhere else.
 
+**Studio's instructions.** The agent also gets a short set of instructions on
+how to work in Studio: start from the spec, try anything that changes data
+against a local mock first, build tests as collections, report schema
+mismatches with the field and what the spec says, and never ask for secret
+values. Four step-by-step guides come with them: testing an API end to end,
+checking a running server against its spec, building a collection from a
+description, and explaining a failed run. You can read exactly what the agent is
+told in [`src/agent-profile/`](src/agent-profile/).
+
+In Studio's own folder, the instructions go in the file the agent reads from
+where it runs: `AGENTS.md` for Codex, `CLAUDE.md` for Claude Agent and
+`GEMINI.md` for Gemini CLI, with the guides in `spec0-studio/guides/`. Studio
+keeps these files up to date. If you edit one, Studio leaves it as it is, and
+Settings → Agent chat offers to restore Studio's version. In a folder you
+chose, Studio writes nothing and sends the instructions with the first message
+instead. Turn off **Use Spec0 instructions** in Settings to leave them out.
+
 An empty chat suggests a few things to ask, based on what's open, such as
 testing the API against a local mock or asking why the last run failed. When the
 agent creates a collection or runs one through Studio's tools, its card in the

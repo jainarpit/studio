@@ -61,6 +61,28 @@ Notes for working on the Agent panel. What it does for users is in the
   any of them as losing it (a stop, a restart or a new token all end the agent's
   MCP session) and the panel offers **Reconnect**. The Claude and Codex adapters
   both accept HTTP MCP servers and embedded resources.
+- **Studio's instructions.** The text is in `src/agent-profile/`
+  (`instructions.md` and `guides/*.md`). Rust bundles it with `include_str!` in
+  `src-tauri/src/agent_profile.rs`, and `acp_start` writes it into Studio's own
+  agent folder before the agent starts, as the file that agent reads:
+  - Codex reads `AGENTS.md` from its working folder. Without a git repository
+    around it, it checks only that folder. The Codex adapter starts Codex with
+    the session's folder.
+  - The Claude adapter starts Claude with `settingSources` `user`, `project` and
+    `local`, so `CLAUDE.md` in the working folder is read.
+  - Gemini CLI reads `GEMINI.md` from its workspace folders and their parents.
+  - Other ACP programs get `AGENTS.md`, the shared convention.
+
+  Writes go only to fixed names inside that folder (`agent_profile::inside`
+  refuses anything else). Studio records what it last wrote in
+  `instructions.json` in its settings folder: a file still exactly as written is
+  rewritten when the bundled text changes, and a file that differs is the
+  user's and is left alone until **Restore Studio's version**. Turning the
+  setting off removes Studio's unchanged files. When the agent works in a folder
+  the user chose, or writing failed, `acp_start` reports it (`elsewhere`,
+  `failed`) and `firstMessageNote` in `src/lib/agentProfile.ts` sends the
+  instructions and guides with the first message. Bump
+  `agent_profile::VERSION` when the text changes.
 - **`src/lib/markdown.ts`** reads agent messages into plain data that the panel
   renders as React elements, never HTML. Only `http(s)` links are links, and
   images are shown as their description.

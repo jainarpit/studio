@@ -34,9 +34,16 @@ export interface AgentChatPrefs {
    * starts, if it isn't running, and connect the agent to it. On unless turned off.
    */
   studioTools: boolean;
+  /** Give the agent Studio's instructions and task guides. On unless turned off. */
+  instructions: boolean;
 }
 
-export const DEFAULT_AGENT_CHAT_PREFS: AgentChatPrefs = { agent: null, workspace: null, studioTools: true };
+export const DEFAULT_AGENT_CHAT_PREFS: AgentChatPrefs = {
+  agent: null,
+  workspace: null,
+  studioTools: true,
+  instructions: true,
+};
 
 const AGENT_IDS: ReadonlyArray<AgentId> = ["claude", "codex", "gemini", "custom"];
 
@@ -47,6 +54,7 @@ export async function loadAgentChatPrefs(): Promise<AgentChatPrefs> {
     workspace: typeof stored.workspace === "string" && stored.workspace.trim() ? stored.workspace : null,
     // Only an explicit `false` turns it off.
     studioTools: stored.studioTools !== false,
+    instructions: stored.instructions !== false,
   };
 }
 

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AnyMessage, Stream } from "@agentclientprotocol/sdk";
 import { inTauri } from "./request";
+import type { InstructionsState } from "./agentProfile";
 
 /**
  * The agent process behind the chat panel, seen from the web view.
@@ -38,6 +39,8 @@ export interface Started {
   session: number;
   command: string;
   cwd: string;
+  /** Whether Studio's instructions are in the agent's folder. */
+  instructions: InstructionsState;
 }
 
 export interface Exit {
@@ -166,10 +169,10 @@ export interface AgentProcess {
 }
 
 /** Start an agent and connect to its standard input and output. */
-export async function startAgent(agent: AgentId, cwd: string | null): Promise<AgentProcess> {
+export async function startAgent(agent: AgentId, cwd: string | null, instructions = true): Promise<AgentProcess> {
   if (!inTauri) throw new Error("The chat panel needs the desktop app.");
   await ensureListening();
-  const started = await invoke<Started>("acp_start", { agent, cwd });
+  const started = await invoke<Started>("acp_start", { agent, cwd, instructions });
   return connectProcess(started, (line) => invoke("acp_send", { session: started.session, line }), {
     stop: () => invoke<boolean>("acp_stop", { session: started.session }).then(() => undefined),
     stderr: () => invoke<string | null>("acp_stderr", { session: started.session }).then((text) => text ?? ""),

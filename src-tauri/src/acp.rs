@@ -19,6 +19,7 @@
 //! Nothing starts until the user sends a first message, and every process is
 //! stopped, with its children, when the session ends or Studio quits.
 
+use crate::agent_profile::{self, State};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, VecDeque};
@@ -838,6 +839,8 @@ pub struct Started {
     pub session: u64,
     pub command: String,
     pub cwd: String,
+    /// Whether Studio's instructions are in the agent's folder.
+    pub instructions: crate::agent_profile::State,
 }
 
 /// Start an agent. Lines it writes arrive as `studio://acp-data`.
@@ -846,11 +849,21 @@ pub async fn acp_start(
     app: tauri::AppHandle,
     agent: String,
     cwd: Option<String>,
+    instructions: Option<bool>,
 ) -> Result<Started, String> {
     let overrides = load_overrides(&app);
-    let cwd = match cwd.filter(|cwd| !cwd.trim().is_empty()) {
-        Some(cwd) => check_workspace(&cwd)?,
-        None => default_workspace(&app)?,
+    let use_instructions = instructions.unwrap_or(true);
+    let (cwd, instructions) = match cwd.filter(|cwd| !cwd.trim().is_empty()) {
+        // A folder the user chose: Studio writes nothing there.
+        Some(cwd) => (
+            check_workspace(&cwd)?,
+            if use_instructions { State::Elsewhere } else { State::Off },
+        ),
+        None => {
+            let workspace = default_workspace(&app)?;
+            let state = prepare_instructions(&app, &workspace, &agent, use_instructions);
+            (workspace, state)
+        }
     };
     let (line, dirs) = {
         let agent = agent.clone();
@@ -949,7 +962,51 @@ pub async fn acp_start(
         session: id,
         command: line.display(),
         cwd: cwd.display().to_string(),
+        instructions,
     })
+}
+
+// Studio's instructions for the agent
+
+fn record_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(agent_dir(app)?.join(agent_profile::RECORD_FILE))
+}
+
+/// Write (or, when turned off, take away) Studio's instructions in its own
+/// agent folder. A failure doesn't stop the chat: the instructions then go with
+/// the first message.
+fn prepare_instructions(app: &tauri::AppHandle, workspace: &Path, agent: &str, on: bool) -> State {
+    let Ok(path) = record_path(app) else { return if on { State::Failed } else { State::Off } };
+    let mut record = agent_profile::load_record(&path);
+    let state = if on {
+        agent_profile::install(workspace, agent, &mut record, false).unwrap_or(State::Failed)
+    } else {
+        agent_profile::remove(workspace, &mut record);
+        State::Off
+    };
+    if agent_profile::save_record(&path, &record).is_err() && on {
+        return State::Failed;
+    }
+    state
+}
+
+/// How Studio's instructions stand in its own agent folder, for Settings.
+#[tauri::command]
+pub fn acp_instructions_status(app: tauri::AppHandle, agent: String) -> Result<State, String> {
+    let workspace = default_workspace(&app)?;
+    let record = agent_profile::load_record(&record_path(&app)?);
+    agent_profile::status(&workspace, &agent, &record)
+}
+
+/// Put Studio's version of the instructions back, replacing the user's edits.
+#[tauri::command]
+pub fn acp_instructions_restore(app: tauri::AppHandle, agent: String) -> Result<State, String> {
+    let workspace = default_workspace(&app)?;
+    let path = record_path(&app)?;
+    let mut record = agent_profile::load_record(&path);
+    let state = agent_profile::install(&workspace, &agent, &mut record, true)?;
+    agent_profile::save_record(&path, &record)?;
+    Ok(state)
 }
 
 /// Write one JSON-RPC message to the agent.
