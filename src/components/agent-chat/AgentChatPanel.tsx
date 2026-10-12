@@ -5,7 +5,9 @@ import { useAgentChatSettings } from "../../hooks/useAgentChatSettings";
 import { useAgentChatPanelOpen } from "../../hooks/useAgentChatPanelOpen";
 import {
   agentChatShortcutLabel,
+  chatActivityOf,
   isAgentChatShortcut,
+  setAgentChatActivity,
   setAgentChatPanelOpen,
   toggleAgentChatPanel,
   chatWidthAfterKey,
@@ -26,6 +28,7 @@ import {
 import { MCP_TOOLS } from "../../lib/mcp";
 import { isMac } from "../../lib/platform";
 import { inTauri } from "../../lib/request";
+import { AgentSetup } from "./AgentSetup";
 import { ChatItemView } from "./ChatItemView";
 
 interface Props {
@@ -112,11 +115,19 @@ export function AgentChatPanel({ mentionChoices, studioContext, onOpenInStudio, 
     if (open) requestAnimationFrame(() => input.current?.focus());
   }, [open]);
 
-  // Without a chosen agent, the panel offers the ones it finds.
-  const { prefs, loaded, agents, findAgents } = settings;
+  // Without a chosen agent, the panel walks through setting one up, and stays
+  // on that until the chosen agent has connected or the user moves on.
+  const { prefs, loaded } = settings;
+  const [settingUp, setSettingUp] = useState(false);
   useEffect(() => {
-    if (open && loaded && !prefs.agent && agents === null) void findAgents();
-  }, [open, loaded, prefs.agent, agents, findAgents]);
+    if (loaded && !prefs.agent) setSettingUp(true);
+  }, [loaded, prefs.agent]);
+
+  // The top bar's Agent button shows this, panel open or not.
+  useEffect(() => {
+    setAgentChatActivity(chatActivityOf(chat.running, chat.items));
+  }, [chat.running, chat.items]);
+  useEffect(() => () => setAgentChatActivity("idle"), []);
 
   // Follow the conversation while it's scrolled to the bottom.
   useEffect(() => {
@@ -307,8 +318,8 @@ export function AgentChatPanel({ mentionChoices, studioContext, onOpenInStudio, 
         >
           {!inTauri ? (
             <p className="agent-chat-empty">The chat panel needs the desktop app.</p>
-          ) : loaded && !prefs.agent ? (
-            <AgentPicker settings={settings} onOpenSettings={onOpenSettings} />
+          ) : loaded && (settingUp || !prefs.agent) ? (
+            <AgentSetup settings={settings} onOpenSettings={onOpenSettings} onDone={() => setSettingUp(false)} />
           ) : chat.items.length === 0 ? (
             <div className="agent-chat-empty">
               <p>
@@ -341,7 +352,7 @@ export function AgentChatPanel({ mentionChoices, studioContext, onOpenInStudio, 
         </div>
       )}
 
-      {!showHistory && inTauri && prefs.agent && (
+      {!showHistory && inTauri && prefs.agent && !settingUp && (
         <footer className="agent-chat-compose">
           {menu && (
             <div className="agent-chat-menu" role="listbox" aria-label="Attach">
@@ -506,40 +517,4 @@ function ToolsLine({ chat }: { chat: ReturnType<typeof useAgentChat> }) {
     default:
       return null;
   }
-}
-
-/** Shown until an agent is chosen: the ones found, to pick one here or in Settings. */
-function AgentPicker({
-  settings,
-  onOpenSettings,
-}: {
-  settings: ReturnType<typeof useAgentChatSettings>;
-  onOpenSettings: () => void;
-}) {
-  const usable = settings.agents?.filter((agent) => agent.how !== "missing") ?? [];
-  return (
-    <div className="agent-chat-empty">
-      <p>
-        Chat with a coding agent you already use, such as Claude, Codex or Gemini CLI. Studio starts it on this
-        computer, signed in with your own account, and gives it Studio&apos;s tools.
-      </p>
-      {settings.searching && <p className="field-meta">Looking for agents…</p>}
-      {settings.agents && usable.length === 0 && !settings.searching && (
-        <p className="field-meta">No agent was found on this computer. Settings lists what to install.</p>
-      )}
-      <div className="agent-chat-picks">
-        {usable.map((agent) => (
-          <button key={agent.id} className="btn" onClick={() => void settings.setPrefs({ agent: agent.id })}>
-            Use {agent.name}
-          </button>
-        ))}
-        <button className="btn ghost" onClick={onOpenSettings}>
-          Settings…
-        </button>
-      </div>
-      <p className="field-meta">
-        What you send goes to that agent and its model provider. Nothing starts until you send a message.
-      </p>
-    </div>
-  );
 }

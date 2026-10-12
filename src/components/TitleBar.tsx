@@ -1,11 +1,13 @@
-import { Layers, Plus, Settings } from "lucide-react";
+import { BotMessageSquare, Layers, Plus, Settings } from "lucide-react";
 import { Brand } from "./Logo";
 import { ConnectionChip } from "./ConnectionChip";
 import { TabList } from "./TabList";
 import type { EnvironmentFile } from "../lib/env";
 import { TOP_TABS, type TopTab } from "../lib/navigation";
-import { shortcut } from "../lib/platform";
+import { isMac, shortcut } from "../lib/platform";
 import type { Session } from "../lib/spec0";
+import { agentButtonText, toggleAgentChatPanel } from "../lib/agentChatPanel";
+import { useAgentChatActivity, useAgentChatPanelOpen } from "../hooks/useAgentChatPanelOpen";
 
 interface Props {
   /** The selected tab, or null on the Settings page. */
@@ -35,8 +37,8 @@ const TAB_TITLES: Record<TopTab, string> = {
 
 /**
  * The window's top bar: the app's sections as text tabs on the left; the
- * environment, whether you're signed in, and Settings on the right. What's
- * specific to the open API is in the bar below it (`ApiBar`).
+ * environment, whether you're signed in, the agent chat and Settings on the
+ * right. What's specific to the open API is in the bar below it (`ApiBar`).
  */
 export function TitleBar({
   topTab,
@@ -106,6 +108,8 @@ export function TitleBar({
 
       <ConnectionChip session={session} onClick={onOpenAccount} />
 
+      <AgentButton />
+
       <button
         className={`icon-btn settings-btn${settingsOpen ? " on" : ""}${insecureHosts ? " warn-dot" : ""}`}
         onClick={onOpenSettings}
@@ -124,5 +128,30 @@ export function TitleBar({
         <Settings size={16} />
       </button>
     </div>
+  );
+}
+
+/**
+ * Opens and closes the agent chat. Labelled, rather than an icon alone, so it's
+ * easy to find; a dot shows a running chat, and turns amber while the agent
+ * waits for an answer, even with the panel closed.
+ */
+function AgentButton() {
+  const open = useAgentChatPanelOpen();
+  const activity = useAgentChatActivity();
+  const { label, title } = agentButtonText(open, activity, isMac);
+  return (
+    <button
+      type="button"
+      className={`agent-btn${open ? " on" : ""}`}
+      onClick={toggleAgentChatPanel}
+      aria-pressed={open}
+      aria-label={label}
+      title={title}
+    >
+      <BotMessageSquare size={14} aria-hidden />
+      <span>Agent</span>
+      {activity !== "idle" && <span className={`agent-btn-dot ${activity}`} aria-hidden />}
+    </button>
   );
 }

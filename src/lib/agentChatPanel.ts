@@ -1,8 +1,9 @@
+import type { ChatItem } from "./acpClient";
 import type { KeyPress } from "./shortcuts";
 
 /**
  * Whether the chat panel is open. Kept outside React, like the console's, so
- * the status bar button and the shortcut can toggle it from anywhere.
+ * the top bar button and the shortcut can toggle it from anywhere.
  */
 
 let open = false;
@@ -88,4 +89,47 @@ export function chatWidthAfterKey(key: string, width: number, windowWidth: numbe
     : key === "End" ? CHAT_WIDTH.min
     : null;
   return next === null ? null : clampChatWidth(next, windowWidth);
+}
+
+// Activity, for the top bar button
+
+/**
+ * What the chat is doing, shown as a dot on the top bar's Agent button even
+ * while the panel is closed: `waiting` when the agent is asking the user
+ * something, `running` while a session is live, otherwise `idle`.
+ */
+export type ChatActivity = "idle" | "running" | "waiting";
+
+export function chatActivityOf(running: boolean, items: readonly ChatItem[]): ChatActivity {
+  if (items.some((item) => item.kind === "permission" && item.state === "pending")) return "waiting";
+  return running ? "running" : "idle";
+}
+
+let activity: ChatActivity = "idle";
+const activityListeners = new Set<() => void>();
+
+export function subscribeAgentChatActivity(listener: () => void): () => void {
+  activityListeners.add(listener);
+  return () => activityListeners.delete(listener);
+}
+
+export function agentChatActivity(): ChatActivity {
+  return activity;
+}
+
+export function setAgentChatActivity(next: ChatActivity): void {
+  if (next === activity) return;
+  activity = next;
+  for (const listener of activityListeners) listener();
+}
+
+/** The Agent button's accessible label and tooltip. */
+export function agentButtonText(open: boolean, current: ChatActivity, mac: boolean): { label: string; title: string } {
+  const state =
+    current === "waiting" ? "The agent is waiting for your answer" : current === "running" ? "The agent is running" : null;
+  const action = open ? "Close the agent chat" : "Open the agent chat";
+  return {
+    label: state ? `Agent. ${state}` : "Agent",
+    title: `${action} (${agentChatShortcutLabel(mac)})${state ? `. ${state}.` : ""}`,
+  };
 }

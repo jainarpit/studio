@@ -5,6 +5,23 @@ Notes for working on the Agent panel. What it does for users is in the
 
 ## The pieces
 
+- **The way in** is the **Agent** button at the right of the top bar
+  (`TitleBar.tsx`), and `⇧⌘J` / `Ctrl+Shift+J`. Whether the panel is open, and
+  what the chat is doing (`idle`, `running`, or `waiting` while a permission
+  question is open, from `chatActivityOf`), live outside React in
+  `src/lib/agentChatPanel.ts`, so the button can show a dot while the panel is
+  closed. The panel publishes the activity; the button only reads it.
+- **Set up your agent** (`src/components/agent-chat/AgentSetup.tsx`) shows in
+  the panel until an agent is chosen and has connected. What it lists, and what
+  each agent needs, comes from `src/lib/agentSetup.ts`: `setupRows` sorts the
+  agents into found and not found and gives each a state (`ready`, `needs-cli`,
+  `needs-key` for Claude without a key, `missing`); `initialStep` and
+  `stepAfterTest` give the view's step. Picking an agent saves it to the same
+  prefs Settings uses and runs the same connection test (`agentChatTest.ts`).
+  The install and sign-in commands it shows are the ones each project
+  documents; keep them in step with Settings → Agent chat. The Anthropic key
+  field is shared with Settings (`AnthropicKeyField.tsx`).
+
 - **`src-tauri/src/acp.rs`** starts and stops the agent process and passes its
   lines in both directions. The web view names an agent (`claude`, `codex`,
   `gemini` or `custom`); the program and its arguments are decided here. A
