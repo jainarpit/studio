@@ -1,0 +1,93 @@
+---
+title: Connecting to Spec0
+description: Sign in to add your organisation's APIs, their environments and hosted mocks to Studio. Optional; nothing else depends on it.
+docType: how-to
+---
+
+Signing in to Spec0 is optional. It adds your organisation's API catalog, keeps those specs
+current, and adds deployed environments and [hosted mocks](/docs/studio/hosted-mocks) as request
+targets. Everything else in Studio works without it.
+
+## Signing in
+
+Sign in and out in **Settings → Account & Spec0**, which the **Local** chip in the top bar also
+opens. Places that need an account, such as the **Mocks** tab or publishing a spec, have a **Sign
+in to Spec0…** button that opens a dialog with just the sign-in choices. Once you're signed in, it
+offers to browse your organisation's APIs.
+
+| Way | What happens |
+|---|---|
+| **Your spec0 CLI session** | If you've run `spec0 auth login`, Studio offers to reuse that session. One click, no browser. |
+| **Sign in with a browser** | Studio opens the same sign-in page the CLI uses, and catches the redirect on a local port. |
+| **Paste a token** | `SPEC0_TOKEN` and `SPEC0_ORG_ID`, the same pair CI uses. Offered on the Spec0 tab of **Add an API**. |
+
+Signing in from Studio doesn't sign you out of the spec0 CLI. If you cancel on the sign-in page,
+Studio stops waiting straight away.
+
+Signing out returns Studio to local-only use. Nothing you've added is lost.
+
+## Your organisation's APIs
+
+Once you're signed in, **Add API → Spec0** lists every API your organisation owns, private and
+published. Each row shows its team, version, and whether it has a hosted mock.
+
+Adding one pulls the latest published spec into your library, so it keeps working offline, and
+after you sign out.
+
+## Keeping specs current
+
+Specs from Spec0 don't change under you. To see whether any have a newer published version, press
+**Check for updates** at the top of the library. An API with a newer version shows **Update
+available**.
+
+When you apply an update, Studio tells you what it changed for you: operations that were added or
+removed, History entries whose operation is gone, a server you were using that the spec no longer
+declares, and a hosted mock that's now behind.
+
+## Environments
+
+An API from Spec0 comes with the environments Spec0 knows it's deployed to, such as staging and
+production, named the way your organisation named them. They appear in the address bar's target
+menu, next to the spec's own servers and the mock.
+
+Studio never picks one for you. The address bar starts on the spec's first server, and where a
+request goes stays your choice.
+
+If an environment runs a different version from the spec you have, the address bar says so, for
+example: "staging runs 1.2.0; this spec is 1.4.0". A request built from one version and sent to a
+server running another can fail in ways that look like your mistake.
+
+The list is kept with the API, so it works offline and after signing out. It's replaced, not merged,
+each time it's refreshed, so an environment that's been retired stops being offered.
+
+<Callout>
+These are **Spec0 environments**: places your API runs. They carry no variables or secrets.
+[Studio environments](/docs/studio/auth-environments#environments) are your own sets of variables.
+You'll often use one of each.
+</Callout>
+
+## Hosted mocks
+
+An API with a hosted mock comes with it attached, as a target in the address bar. Anything sent to
+it is labelled **MOCK**. An API without one can get one from **Create mock**. See
+[Hosted mock servers](/docs/studio/hosted-mocks).
+
+## Who depends on an API
+
+For an API from your organisation's catalog, Studio shows how many consumers it has: the teams and
+services holding a grant on it, including grants still waiting for approval. It answers the
+question "if I change this, does anyone else care?".
+
+Clicking the count opens the API's consumers in the Spec0 dashboard. The count isn't shown when
+you're signed out or offline.
+
+## Publishing a spec
+
+A spec you added from a file can be published to your organisation from the
+[Document view](/docs/studio/document#publishing-a-local-spec-to-spec0).
+
+## What stays local
+
+Signing in doesn't change what leaves your computer. History, environments, secret values,
+collections and run logs stay local and are never synced. Studio talks to Spec0 through the same
+public API as the CLI.

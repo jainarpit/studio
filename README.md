@@ -753,6 +753,8 @@ npm run app:build      # installers for your platform (.dmg, .AppImage/.deb, .ex
 - **Security problems**: report them privately, as described in [SECURITY.md](SECURITY.md),
   rather than in a public issue.
 - **Pull requests** are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+- **The user guide** at [docs.spec0.io/docs/studio](https://docs.spec0.io/docs/studio) is
+  written in [docs/user](docs/user/). A fix or a new page is a pull request there.
 
 ## Licence
 

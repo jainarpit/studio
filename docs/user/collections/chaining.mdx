@@ -1,0 +1,126 @@
+---
+title: Passing values between steps
+description: Use a value from one step's response in a later step, see every link in the Chain view, and fix links that break.
+docType: how-to
+---
+
+A later step can take a value from an earlier step's response, such as the id of the order that
+step 1 created. This is called a **link**. This page covers adding links, reading them in the Chain
+view, and fixing broken ones.
+
+## Add a link
+
+There are four ways in. They all open the same dialog, **Pass a value between steps**.
+
+- **From a field.** In a step's request, press the link button next to a parameter or header.
+- **From a body.** Under a JSON body, choose **Take a body field from an earlier step**.
+- **From a response.** In a step's **Response**, click a value and choose **Use in a later step**.
+- **From the Chain view.** Press **Add link**.
+
+In the dialog:
+
+<Steps>
+<Step>
+
+**Fill this field.** Choose the step, then the field to fill: a path or query parameter, a header,
+a field inside the JSON body (such as `items[0].sku`), or a form field.
+
+</Step>
+<Step>
+
+**With this value.** Choose an earlier step, then a value from its response. After a run, the list
+shows the real values from the last response. Before any run, it lists the fields the spec
+declares. You can also type a path, such as `body.data[0].id`.
+
+</Step>
+<Step>
+
+Check the sentence at the bottom, which says what will happen, and press **Add link**.
+
+</Step>
+</Steps>
+
+<Screenshot
+  src="/images/product/studio-link-dialog.webp"
+  alt="The 'Pass a value between steps' dialog. On the left, step 2 getOrder with its orderId path parameter selected. On the right, step 1 createOrder with body.id selected from a list of response fields. The footer reads 'getOrder path orderId ← createOrder body.id'."
+  caption="Fill getOrder's orderId with the id from createOrder's response."
+  width={1558}
+  height={1280}
+  minWidth={640}
+/>
+
+A linked field then shows where its value comes from, instead of the value. **Change** picks
+another value, and **×** removes the link.
+
+<Screenshot
+  src="/images/product/studio-field-chip.webp"
+  alt="A step's path parameter orderId showing a chip that reads 'from 1 createOrder → body.id', with Change and a remove button."
+  caption="A linked field reads 'from 1 createOrder → body.id' rather than showing a value."
+  width={1600}
+  height={614}
+  minWidth={640}
+/>
+
+## References
+
+In the step's inputs, and in the collection file, a link is a reference like this:
+
+```text
+{{steps.createOrder.body.id}}
+```
+
+`createOrder` is the earlier step's **Key**. After it comes `status`, `body.` and a path into the
+JSON body, or `headers.` and a header name. You can type a reference by hand; it works the same as
+one made in the dialog.
+
+In a JSON body, a link to a string is written in quotes, and a link to a number or an object is
+written bare, going by the type the spec gives the field.
+
+Environment variables (`{{token}}`) still work alongside links.
+
+## The Chain view
+
+Choose **Chain** in the collection header to see every link at once. Each step is a card that lists
+what it **gives** (fields later steps use) and what it **takes** (fields filled from earlier steps).
+A line runs from each value to the field it fills.
+
+<Screenshot
+  src="/images/product/studio-chain-view.webp"
+  alt="The Chain view of a three-step Checkout collection. createOrder gives body.id and body.total; getOrder takes its orderId path parameter from body.id; createPayment takes body.orderId and body.amount. Lines connect each value to the field it fills, and an All links table lists the three links."
+  caption="Each line runs from a value in one step's response to the field it fills in a later step. All links lists them again as a table."
+  width={1600}
+  height={1128}
+  minWidth={640}
+/>
+
+**All links** under the cards lists every link as a row, with **Change** and **Remove**. After a
+run, each link shows the value it passed (secret values are hidden), so you can see what actually
+went from step to step.
+
+## Broken links
+
+A link that can't work is shown in red, with the reason and a fix:
+
+| Reason | Fix |
+|---|---|
+| The step it takes a value from was removed. | Choose another value. |
+| The step it takes a value from now runs at or after the step that uses it. | Move that step back, in one click. |
+| The field wasn't in that step's last response. | Choose another value. |
+
+The step list also marks steps that have a broken link. Before a run, a field the spec doesn't
+declare, or a response header, is marked as not checked yet rather than as broken.
+
+<Screenshot
+  src="/images/product/studio-chain-broken.webp"
+  alt="The Chain view with a warning: '1 link can't work as the collection is now.' getOrder now runs before createOrder, so its orderId link is shown in red with a dashed line running upward and a button 'Move createOrder before getOrder'."
+  caption="getOrder was moved above createOrder, so its link runs upward. The fix moves createOrder back."
+  width={1600}
+  height={898}
+  minWidth={640}
+/>
+
+<Callout title="Good to know">
+- A reference that can't be filled when the collection runs fails its step before anything is
+  sent, and the run log says which one.
+- A body that isn't valid JSON is never rewritten by a link. The step says so instead.
+</Callout>

@@ -1,0 +1,125 @@
+---
+title: Install and update
+description: Download Studio for macOS, Windows or Linux, check the download, and keep it up to date.
+docType: how-to
+---
+
+This page covers downloading Studio, checking the file, and installing updates.
+
+## Download
+
+These links always point to the newest version. Every release also lists its files on the
+[releases page](https://github.com/spec-0/studio/releases/latest), with a `SHA256SUMS.txt` you can
+check a download against.
+
+<Tabs items={['macOS', 'Windows', 'Linux']}>
+  <Tab value="macOS">
+
+Download [spec0-studio-macos-universal.dmg](https://github.com/spec-0/studio/releases/latest/download/spec0-studio-macos-universal.dmg),
+open it, and drag Studio to Applications. It needs macOS 11 or later, and runs natively on Apple
+silicon and Intel.
+
+The app is signed and notarized by Apple, so it opens without a warning. If you do see a warning,
+something is wrong with the download: check it before you open it.
+
+```bash
+shasum -a 256 ~/Downloads/spec0-studio-macos-universal.dmg
+spctl --assess --type open --context context:primary-signature -v ~/Downloads/spec0-studio-macos-universal.dmg
+```
+
+Compare the first line with `SHA256SUMS.txt`. The second command should print
+`source=Notarized Developer ID`.
+
+  </Tab>
+  <Tab value="Windows">
+
+Download [spec0-studio-windows-x64-setup.exe](https://github.com/spec-0/studio/releases/latest/download/spec0-studio-windows-x64-setup.exe)
+and run it. It works on Windows 10 and 11 (x64), and installs for your user only, so it doesn't
+need admin rights.
+
+The installer isn't code-signed yet, so Windows SmartScreen will probably say "Windows protected
+your PC". Click **More info**, then **Run anyway**. To check the file first, compare its hash with
+`SHA256SUMS.txt`. In PowerShell:
+
+```powershell
+Get-FileHash .\spec0-studio-windows-x64-setup.exe
+```
+
+Studio uses Microsoft's WebView2 to draw its window. Windows 11 and current Windows 10 already have
+it. If yours doesn't, the installer downloads it from Microsoft.
+
+  </Tab>
+  <Tab value="Linux">
+
+Studio needs **WebKitGTK 4.1**: Ubuntu 22.04, Debian 12 or newer, or another distribution of about
+that age. Builds are x86_64 only.
+
+**AppImage** (most distributions): download
+[spec0-studio-linux-x86_64.AppImage](https://github.com/spec-0/studio/releases/latest/download/spec0-studio-linux-x86_64.AppImage),
+make it executable, and run it.
+
+```bash
+chmod +x spec0-studio-linux-x86_64.AppImage
+./spec0-studio-linux-x86_64.AppImage
+```
+
+**Debian and Ubuntu**: download
+[spec0-studio-linux-amd64.deb](https://github.com/spec-0/studio/releases/latest/download/spec0-studio-linux-amd64.deb)
+and install it with apt.
+
+```bash
+sudo apt install ./spec0-studio-linux-amd64.deb
+```
+
+To keep secret values in the system keyring, you need a running Secret Service, such as GNOME
+Keyring or KWallet. See [Where secrets are kept](/docs/studio/auth-environments#where-secrets-are-kept).
+
+  </Tab>
+</Tabs>
+
+## Supported systems
+
+| System | Build |
+|---|---|
+| macOS 11 or later | Universal (Apple silicon and Intel). Signed and notarized by Apple. |
+| Windows 10 and 11 | x64. Not code-signed yet. |
+| Linux | x86_64, as an AppImage and a `.deb`. Needs WebKitGTK 4.1. |
+
+<Callout title="Good to know">
+- There are no ARM builds for Windows or Linux yet.
+- The Windows and Linux builds have had much less use than the Mac build. If something looks or
+  works wrong, please [open an issue](https://github.com/spec-0/studio/issues).
+</Callout>
+
+## Updates
+
+Choose **Check for Updates…** to see whether there is a newer version. It's in the app menu on
+macOS, and in the Help menu on Windows and Linux. You can also use **Check for updates now** in
+**Settings → Updates**. If there is one, Studio shows its release notes and offers to install it
+and restart.
+
+- **Studio checks only when you ask.** The check is one request to github.com for the latest
+  release. It sends nothing about your specs, environments or history.
+- **Checking on start is optional.** **Settings → Updates** has a setting to check each time Studio
+  starts. It's off unless you turn it on.
+- **Updates are signed.** Studio refuses an update whose signature doesn't match.
+
+How the update installs depends on how you installed Studio:
+
+| Installed as | What happens |
+|---|---|
+| macOS app | Studio replaces itself and restarts. |
+| Windows installer | The installer runs, then Studio starts again. |
+| AppImage | The AppImage replaces itself. |
+| `.deb` | Studio asks for your password (through `pkexec`) to install the new package. |
+
+<Callout title="Good to know">
+The update check uses the proxy from Studio's [network settings](/docs/studio/network), but not
+its certificate settings. If your network inspects encrypted traffic with a private certificate
+authority, the check may fail. Download the new version from the releases page instead.
+</Callout>
+
+## Building from source
+
+You need Node 20 or later and a Rust toolchain. The
+[repository's README](https://github.com/spec-0/studio#build-from-source) has the steps.

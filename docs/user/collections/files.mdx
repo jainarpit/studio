@@ -1,0 +1,108 @@
+---
+title: Collection files and git
+description: Save a collection to a YAML file, keep it in a git repository next to your specs, and share it with your team.
+docType: how-to
+---
+
+Collections are kept in Studio. You can also save one to a file, for example in a git repository
+next to your specs, so your team can use it and review changes to it. This page covers the file,
+keeping it in sync, and what's never written to it.
+
+## Save, export and open
+
+The **⋯** menu in the collection header has:
+
+| Action | What it does |
+|---|---|
+| **Save to a folder…** | Writes the collection to a file and keeps it **linked**: later changes are saved to that file. |
+| **Export a copy…** | Writes a one-off copy. The collection in Studio isn't linked to it. |
+| **Keep in Studio only** | Stops linking a collection to its file. The file stays where it is. |
+
+In the list of collections:
+
+- **Open file…** opens a collection file and keeps it linked.
+- **Import…**, or dropping a file on the Collections tab, adds a copy. It also takes
+  [Postman collections](/docs/studio/collections/postman).
+
+## Keeping a linked file in sync
+
+A linked collection has a **Save** button in its header. Edits in Studio are written to the file
+when you press it; until then the collection shows a dot for unsaved changes.
+
+Studio re-reads a linked file when you open the collection and whenever you come back to the
+window, for example after a `git pull`:
+
+| The file… | Studio… |
+|---|---|
+| hasn't changed | does nothing. |
+| changed, and you have no unsaved edits | loads the file's version. |
+| changed, and so did the collection in Studio | asks which version to keep. |
+| can't be found | says so, and offers to save it again or stop linking it. |
+
+Saving never overwrites a file that changed since Studio last read it. It asks instead.
+
+## The file
+
+Collection files are YAML, named like `checkout.spec0-collection.yaml` so they're easy to find in a
+repository. Here's a short one:
+
+```yaml title="checkout.spec0-collection.yaml"
+# A spec0 Studio collection. Each step points at an operation in one of the
+# specs under `apis`; the spec stays the source of truth. Values like
+# {{token}} come from a Studio environment and are never stored here.
+version: 1
+name: Checkout
+apis:
+  orders:
+    title: Orders API
+    file: ../specs/orders.yaml
+  payments:
+    title: Payments API
+    file: ../specs/payments.yaml
+steps:
+  - key: createOrder
+    api: orders
+    operationId: createOrder
+    method: POST
+    path: /orders
+    target: local-mock
+    body: |
+      { "customerId": "cus_42", "lineItems": [{ "sku": "abc", "quantity": 2 }] }
+  - key: getOrder
+    api: orders
+    operationId: getOrder
+    method: GET
+    path: /orders/{orderId}
+    pathParams:
+      orderId: "{{steps.createOrder.body.id}}"
+  - key: getDeletedOrder
+    api: orders
+    operationId: getOrder
+    method: GET
+    path: /orders/{orderId}
+    pathParams:
+      orderId: does-not-exist
+    expect:
+      status: "404"
+```
+
+- **Specs are referred to, not copied.** A spec from a file is written as a path relative to the
+  collection file, so the pair works on a colleague's machine too. A spec from a URL is written as
+  its URL, and one from Spec0 by its Spec0 name.
+- **A step names its operation** by `operationId`, with the method and path as a fallback.
+- **A target** is `mock`, `local-mock`, `{ server: <url> }` or `{ url: <url> }`. With no target, the
+  step uses the API's first server.
+- **Links** are `{{steps.<key>...}}` references. See [Passing values between steps](/docs/studio/collections/chaining).
+
+When a colleague opens the file, each API has to be in their library too. Studio finds it by where
+it came from.
+
+## What's never written
+
+Collection files never contain secret values:
+
+- A value you've marked secret in an environment is written as its `{{reference}}`.
+- An auth value typed straight into a step, not a `{{variable}}`, is left out, and Studio tells you
+  which steps need one.
+
+So a collection file is safe to commit, the same as an environment file.

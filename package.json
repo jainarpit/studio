@@ -24,6 +24,7 @@
     "app": "tauri dev",
     "app:build": "tauri build",
     "test": "vitest run",
+    "check:docs": "node scripts/check-user-docs.mjs",
     "test:csp": "npm run build && node scripts/csp-check.mjs",
     "type-check": "tsc --noEmit"
   },

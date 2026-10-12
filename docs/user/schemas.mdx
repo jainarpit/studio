@@ -1,0 +1,35 @@
+---
+title: Schemas
+description: Browse an API's data models, see what each one uses and is used by, and get an example.
+docType: how-to
+---
+
+A **schema** is a named data model in a spec, such as `Order` or `Customer`. The **Schemas** view
+lets you read an API's data model directly, rather than one request at a time.
+
+## The schema browser
+
+Open an API and choose **Schemas** (`⌘2`). It lists every schema under `components/schemas`, with a
+search box and a count of where each one is used.
+
+Open a schema to see:
+
+| Section | What's there |
+|---|---|
+| **Fields** | Every property, with its type, whether it's required, and its description. `allOf` is shown merged, so inherited fields appear in place. |
+| **References** | The schemas this one uses. Click one to open it. |
+| **Referenced by** | The schemas that use this one. |
+| **Used in operations** | Every operation that sends or returns this schema. Click one to open it. |
+| **Example** | A realistic example, built from the schema. |
+| **Raw** | The schema as JSON Schema. |
+
+## The graph
+
+To see how the schemas link to each other, use the **Graph** view (`⌘3`). See
+[Schema graph](/docs/studio/schema-graph).
+
+<Callout title="Good to know">
+Examples use the spec's own examples, defaults and enum values where it has them, then values that
+fit each field's type and format. A field with no example, no format and an unfamiliar name gets a
+placeholder such as `"string"`, which you'll want to replace.
+</Callout>

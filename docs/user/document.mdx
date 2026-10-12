@@ -1,0 +1,80 @@
+---
+title: The document view
+description: Read the spec as text or as a rendered reference, see which git commit a file came from, and publish a local spec to Spec0.
+docType: how-to
+---
+
+The **Document** view shows the spec itself, as text and as a readable reference. Open an API and
+choose **Document** (`⌘4`).
+
+## Raw and Reference
+
+Two tabs, because the two readings answer different questions.
+
+**Raw** is the document exactly as you imported it — YAML stays YAML, JSON stays JSON — with line
+numbers and syntax highlighting. This is what you want when you are about to edit the file, or
+working out why a parser disagrees with you. There is a copy button, and the header tells you the
+line count and which syntax it is.
+
+**Reference** renders the same document the way the Spec0 dashboard renders it: grouped operations,
+expandable schemas, and per-language code samples.
+
+Both work with **no account and no network**. They render the text Studio already holds, so they
+work offline and can never disagree with each other about what the spec says.
+
+<Callout type="info" title="Nothing is fetched to render a reference">
+The renderer is handed the document, not a URL, and the app blocks outbound requests from that
+view entirely. A spec whose description references a remote image will not load it — that request
+would tell whoever wrote the spec that you opened it, and for internal APIs that is a disclosure.
+</Callout>
+
+Large documents stay usable. Only the lines on screen are highlighted, so a multi-megabyte spec
+scrolls at the same speed as a small one.
+
+## Where the file came from
+
+When you open a spec from a file that lives in a git working tree, Studio shows its branch, the
+short commit id, and the commit subject. Hovering gives the full sentence, including the repository
+root.
+
+If the file has uncommitted changes, the chip says **uncommitted**, and it means something specific:
+the commit id no longer describes the bytes you are reading.
+
+<Callout type="warn" title="This describes the file, not a deployment">
+Provenance is about the document on your disk. It is **not** a statement about which commit any
+environment is running — Studio has no way to know that, and never infers it. If you need to know
+what is deployed where, that is a fact the platform reports, not one a client can guess.
+</Callout>
+
+Nothing shows when the spec came from a URL or from Spec0, when the file is not in a repository, or
+when git is unavailable. None of those are errors and none of them block anything.
+
+## Publishing a local spec to Spec0
+
+A spec you opened from a file can be published to your organisation from the same header — the
+same operation `spec0 push` performs from CI.
+
+You choose the API name, the team, and the version. Studio pre-fills the name from the document
+title and the version from `info.version`, and **never increments a version for you**: the number
+you publish is one you chose.
+
+The result tells you what actually happened, which is not always "published":
+
+| Outcome | What it means |
+|---|---|
+| **Created** | The API did not exist; it does now. |
+| **Published** | A new version was added. |
+| **Already up to date** | The commit this file is on has already been published. Nothing was sent. |
+| **Version unchanged** | The spec changed but `info.version` did not, so this replaced the existing version rather than adding one. |
+
+That last one is worth reading when it appears — it is the case that quietly overwrites a published
+version in place.
+
+If the working file has uncommitted changes, Studio says so before you publish, and does not send
+the commit id along with the document. What you see is what gets published.
+
+<Callout type="info" title="You publish what you opened from disk">
+The button appears for specs opened from a **file**. An API you pulled *from* Spec0 is already
+byte-identical to what the platform holds — Studio has no editor, so publishing it back would add a
+version number to an unchanged document. Where the action is unavailable, the view says why.
+</Callout>

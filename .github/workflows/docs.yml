@@ -1,0 +1,37 @@
+# Checks the user guide in docs/user, which is published at
+# docs.spec0.io/docs/studio. The site isn't in this repository, so this catches
+# what would break there: bad frontmatter, components the site doesn't have,
+# links between pages that lead nowhere, and missing images.
+
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/user/**"
+      - "scripts/check-user-docs.mjs"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/user/**"
+      - "scripts/check-user-docs.mjs"
+      - ".github/workflows/docs.yml"
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Check the user guide
+        run: node scripts/check-user-docs.mjs
