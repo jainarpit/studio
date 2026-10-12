@@ -2207,7 +2207,19 @@ pre.code, .editor { box-shadow: var(--shadow-1) inset; }
   white-space: nowrap;
 }
 .local-mock-live.compact { font-size: 11px; }
-.local-mock-live .local-mock-address { font-family: var(--font-mono); }
+.local-mock-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: copy;
+}
+.local-mock-state { color: hsl(var(--ink-2)); }
+.local-mock-state::before { content: "·"; margin-right: 5px; color: hsl(var(--ink-3)); }
 .local-mock-live .icon-btn { color: hsl(var(--ink-2)); }
 .local-mock-error {
   color: hsl(var(--danger));
