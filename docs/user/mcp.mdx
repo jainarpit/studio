@@ -16,7 +16,8 @@ Requests go through Studio, so they use your environments, proxy and certificate
 responses are checked against the spec. You decide which hosts an agent may call, and everything it
 does is listed in the MCP tab.
 
-The server is **off by default**. Nothing listens until you start it.
+The server is **off by default**. Nothing listens until you start it, or until you start a chat in
+the [agent chat](/docs/studio/agent-chat), which starts it and connects the agent for you.
 
 ## Turning it on
 
@@ -130,7 +131,7 @@ Tools marked **sign-in** work only while Studio is signed in to Spec0.
 | `list_local_apis` | Lists the APIs in your library: title, version, where each came from, number of operations, base URLs, and whether it has a hosted mock. |
 | `get_api_spec` | Returns the OpenAPI document for one API, exactly as stored. Large documents come back in parts. |
 | `get_operation` | Returns one operation: parameters, request body schema, responses, security schemes, and the full URL for each server. |
-| `search_operations` | Searches the operations of the APIs in your library by path, operationId, summary, tag and description. |
+| `search_operations` | Searches the operations of the APIs in your library by path, operationId, summary, tag and description. Given an API and no search text, it lists that API's operations. |
 | `list_environments` | Lists your environments, which one is active, and each variable's name. Values are included for ordinary variables only. |
 | `get_connection_status` | Says whether Studio is signed in to Spec0 or working locally. |
 

@@ -1,0 +1,138 @@
+---
+title: Set up an agent
+description: Choose Codex, Claude Agent, Gemini CLI or another ACP agent for the chat panel, sign in to it, and choose the folder it works in.
+docType: how-to
+---
+
+The chat uses a coding agent installed on your computer. You set it up once, from the panel itself
+or from **Settings → Agent chat**. Both show the same choices and always agree.
+
+## Set up from the panel
+
+Press **Agent** at the right of the top bar, or `⇧⌘J` (`Ctrl+Shift+J` on Windows and Linux). Until
+an agent is chosen, the panel shows **Set up your agent**:
+
+<Steps>
+<Step>
+**See what's on your computer.** Under **On this computer**, Studio lists the agents it found and
+how each one signs in. Under **Not found**, it lists the others, with the command to install each
+and a button to copy it.
+</Step>
+<Step>
+**Pick one.** Studio starts it and tests the connection straight away. Testing opens a session and
+stops it again, without sending anything.
+</Step>
+<Step>
+**Start chatting.** If the test passes, press **Start chatting**. If it doesn't, the panel says
+what to do next, such as signing in to the agent or saving an API key, with **Test again** and a way
+to choose another agent.
+</Step>
+</Steps>
+
+The panel also says, in one line, where your messages go, and links to Settings and to this guide.
+
+## Codex
+
+Studio runs Codex through its ACP adapter.
+
+1. Install Codex, with npm or Homebrew:
+
+   ```bash
+   npm install -g @openai/codex
+   ```
+
+   ```bash
+   brew install --cask codex
+   ```
+
+2. Sign in once, in a terminal. With your ChatGPT account:
+
+   ```bash
+   codex login
+   ```
+
+   Or with an OpenAI API key, passed on standard input:
+
+   ```bash
+   printenv OPENAI_API_KEY | codex login --with-api-key
+   ```
+
+Codex keeps its sign-in itself, so Studio never sees it. The adapter needs
+[Node.js](https://nodejs.org). If the adapter isn't installed, Studio runs it with `npx`, pinned to
+a version Studio was tested with, so the first chat takes a moment while it downloads.
+
+## Claude Agent
+
+Studio runs Claude through Anthropic's Claude Agent SDK and its ACP adapter, which needs
+[Node.js](https://nodejs.org). It uses an Anthropic API key, which you save in Studio.
+
+1. Create a key in the [Anthropic Console](https://console.anthropic.com).
+2. Choose **Claude Agent** in the panel or in **Settings → Agent chat**, paste the key into
+   **Anthropic API key**, and press **Save**.
+
+Studio keeps the key in your system's credential store: the macOS Keychain, Windows Credential
+Manager, or the Secret Service on Linux. It gives the key only to the Claude agent, as
+`ANTHROPIC_API_KEY`, when a chat starts. Once it's saved, Studio's window can't read it back. Paste a
+new key to replace it, or press **Remove**.
+
+Studio uses an API key for Claude Agent, never a claude.ai or Claude Code sign-in. If no key is
+saved, Studio uses an `ANTHROPIC_API_KEY` it was started with, from a terminal for example. With
+neither, Claude Agent doesn't start, and the panel says where to add a key.
+
+<Callout>
+A key set only in your shell profile doesn't reach Studio when you open it from the Dock or a
+launcher. That's what the **Anthropic API key** field is for.
+</Callout>
+
+## Gemini CLI
+
+Studio runs Gemini CLI itself, as `gemini --acp`.
+
+1. Install it, with npm or Homebrew:
+
+   ```bash
+   npm install -g @google/gemini-cli
+   ```
+
+   ```bash
+   brew install gemini-cli
+   ```
+
+2. Sign in once, in a terminal: run `gemini` and choose **Sign in with Google**, then follow the
+   steps in your browser.
+
+Gemini CLI keeps its sign-in itself. If you'd rather use a Gemini API key, set it the way Gemini
+CLI's documentation describes, but note that an environment variable set in your shell profile
+doesn't reach Studio when you open it from the Dock.
+
+## Another agent
+
+Any program that speaks ACP works. In **Settings → Agent chat**, choose **Another agent**, then
+choose the program and its arguments. Studio shows you the exact command and asks you to confirm it
+before saving it. Sign in to the agent however its documentation says.
+
+## When Studio can't find an agent
+
+Apps opened from the Dock or a launcher don't get your terminal's `PATH`. Studio also looks in the
+usual install folders: Homebrew, `~/.local/bin`, npm's global folder, nvm, Volta and others, and
+`%APPDATA%\npm` on Windows. If your agent is somewhere else, choose its full path in
+**Settings → Agent chat**. As with another agent, Studio asks you to confirm the command first.
+
+Next to each agent, Settings says how Studio will run it: **Installed**, runs its adapter with
+`npx`, uses the program you chose, or **Not found on this computer**.
+
+## The folder the agent works in
+
+By default the agent works in an empty folder of Studio's own, away from Studio's settings. Studio
+keeps its [instructions](/docs/studio/agent-chat/instructions) for the agent there.
+
+To let the agent work on your specs or code, choose a project folder under **Folder the agent works
+in** in **Settings → Agent chat**. The agent can then read or change files in that folder with its
+own tools. When it asks permission for one of them, the question shows up in the panel.
+**Use Studio's empty folder** goes back to the default.
+
+## Turning off Studio's tools
+
+**Give the agent Studio's tools** is on by default. Turn it off in **Settings → Agent chat** if you
+want a plain chat with the agent. The agent then can't send requests or change anything in Studio,
+and the first message tells it so.

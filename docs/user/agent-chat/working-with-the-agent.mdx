@@ -1,0 +1,113 @@
+---
+title: Working with the agent
+description: Attach what you're looking at, use suggestions, follow what the agent does in Studio, approve its requests, and manage chats.
+docType: how-to
+---
+
+Once an agent is [set up](/docs/studio/agent-chat/setup), open the panel with **Agent** in the top
+bar or `⇧⌘J` (`Ctrl+Shift+J` on Windows and Linux). Closing the panel doesn't stop the chat. The
+**Agent** button keeps a dot while a chat is running, and the dot turns amber when the agent is
+waiting for an answer from you.
+
+## Starting a chat
+
+The agent starts when you send your first message. A line at the top of the chat says **Studio's
+tools are connected**; open it to see the list. If Studio's MCP server wasn't running, the chat
+started it for you.
+
+An empty chat suggests up to four things to ask, based on what you have open. For example:
+
+- send the operation on screen and check the response against the spec
+- test the open API against a local mock
+- build a collection that walks through the API's main flow
+- explain why the last run of the open collection failed
+
+Click one to send it, or type your own.
+
+## The Studio context chip
+
+Your first message carries a short note telling the agent that it's working inside Studio, which
+tools it has, and what's open: the API and its version, the operation, and the collection with how
+its last run went. The message shows a **Studio context** chip. Open it to read exactly what was
+sent. Secret values are replaced, as everywhere else.
+
+## Attaching what you're looking at
+
+Type `@`, or press the **@** button, to attach:
+
+- the operation on screen, or another one from the open API
+- one of your last five responses
+- a step from a collection
+- one of the last three run logs of a collection
+
+Use the arrow keys to move through the list and `Enter` or `Tab` to pick. Attachments are sent as
+text, with secret values replaced by their `{{name}}`, and show as chips on your message.
+
+## Following what the agent does
+
+Each tool the agent uses shows up in the chat as a card, with what it asked for and what came back.
+
+- When the agent creates a collection, it appears in **Collections** as a **draft** while the agent
+  builds it, with a banner that names the agent. **Keep** makes it yours; **Discard** deletes it,
+  after you confirm. Agents can change only their own drafts. See
+  [Collections agents build](/docs/studio/mcp#collections-agents-build).
+- When a collection runs, the status bar shows its progress, such as "Running Orders lifecycle ·
+  step 2 of 5". Click it to open the run. When the run ends, a notice says whether it passed, or
+  which step failed and why, with **View run**. A passed notice goes away after a few seconds; a
+  failed one stays until you close it.
+- The card for a collection the agent created, or a run it started, has **Open in Studio**, which
+  takes you to the collection or that run's log.
+
+A run the agent starts doesn't take you away from the chat. Only runs you start from a collection's
+own page open their log when they finish.
+
+## Approving what the agent does
+
+There are two kinds of question, and they look different on purpose.
+
+- **Studio's approvals** appear in a Studio dialog. Studio asks before the agent's first request to
+  each host, before a `DELETE`, `PUT` or `PATCH` to a host that isn't on your computer, before it
+  starts a local mock, and every time it saves a collection to a file. You can answer
+  **Don't allow**, **Allow once** or **Allow for this session**. An approval nobody answers is
+  refused after five minutes. See [Approving what agents do](/docs/studio/mcp#approving-what-agents-do).
+- **The agent's own permission prompts** appear in the chat, with the choices the agent offers. They
+  come up when the agent wants to use one of its own tools, for example to read a file in its folder.
+  Studio doesn't give the agent access to your files or a terminal itself.
+
+## Stop, end and start again
+
+- **Stop** stops what the agent is doing now. The chat stays open, and you can send another message.
+- **End chat** stops the agent. The chat is kept, and you can read it in **Past chats**.
+- **New chat** ends the current chat and starts a fresh one.
+
+Quitting Studio stops every agent it started.
+
+If Studio's MCP server stops or restarts while a chat is open, for example after **Stop agents** in
+the MCP tab, the chat says the agent no longer has Studio's tools and offers **Reconnect**. If the
+server couldn't start, it offers **Start it and reconnect**. Reconnecting starts a new session with
+the agent, which doesn't see the earlier messages.
+
+## Past chats
+
+Studio keeps your last 30 chats on this computer, with secret values replaced. Open **Past chats** at
+the top of the panel to read one again or delete it.
+
+A past chat can be read but not continued. Sending a message starts a new session, and the agent
+doesn't see the earlier messages.
+
+## Resizing the panel
+
+Drag the panel's left edge to make it wider or narrower, or focus the edge and use the arrow keys:
+`Home` makes it as wide as it goes and `End` as narrow. Studio remembers the width. The page next to
+it always keeps enough room for its controls.
+
+## Keys in the chat
+
+| Keys | Action |
+|---|---|
+| `⇧⌘J` | Open or close the panel (`Ctrl+Shift+J` on Windows and Linux) |
+| `Enter` | Send the message |
+| `Shift+Enter` | New line |
+| `@` | Attach an operation, a response, a step or a run log |
+| `↑` `↓`, then `Enter` or `Tab` | Choose an attachment |
+| `Esc` | Close the attachment list |

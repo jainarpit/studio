@@ -25,7 +25,7 @@ protected.
   secret values replaced by their `{{name}}`. The chat is off until you choose an agent, and the
   agent starts only when you send a message. Studio never sees your sign-in to the agent. An
   Anthropic API key for Claude Agent, if you save one, is kept in the credential store and given
-  only to the Claude agent.
+  only to the Claude agent. See [Privacy and safety](/docs/studio/agent-chat/privacy-and-safety).
 - **No requests from the reference view.** The rendered reference is given the spec's text, never a
   URL, and the window blocks its network requests. A remote image in a spec's description isn't
   loaded, because loading it would tell the spec's author that you opened it.
@@ -83,7 +83,9 @@ press **Open**. It only accepts `https` addresses on public hosts. See
 ## Servers Studio runs on your computer
 
 Studio can run two kinds of server. Both are off until you start them, listen on `127.0.0.1` only
-(other computers can't reach them), and stop when Studio quits.
+(other computers can't reach them), and stop when Studio quits. Starting a chat in the
+[agent chat](/docs/studio/agent-chat) starts the MCP server too, unless you turn that off in
+**Settings → Agent chat**.
 
 | | Local MCP server | Local mock |
 |---|---|---|

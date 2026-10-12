@@ -1,0 +1,49 @@
+---
+title: Contributing to agent chat
+description: Suggest better instructions or task guides for the agent, and report something an agent did wrong in a way that helps fix it.
+docType: how-to
+---
+
+Studio is open source, and so is everything the agent is told. If you think the agent should work
+differently in Studio, you can change it.
+
+## Suggest better instructions or guides
+
+The instructions and the four task guides are plain Markdown in
+[`src/agent-profile/`](https://github.com/spec-0/studio/tree/main/src/agent-profile):
+
+- `instructions.md`: what every agent is told about working in Studio
+- `guides/`: one file per task
+
+To suggest a change:
+
+1. Try it first. Edit the file in Studio's agent folder (see
+   [Where they're written](/docs/studio/agent-chat/instructions#where-theyre-written)) and use the
+   agent with your version for a while. **Restore Studio's version** in Settings puts the original
+   back.
+2. Open a pull request against the file in `src/agent-profile/`. Say what the agent did before,
+   what it does with your change, and which agent you tried it with.
+
+Keep the text short and plain. Every line is sent to the agent with every chat, so a longer prompt
+costs everyone time and tokens. Name only tools that exist; Studio's tests check that every tool a
+guide mentions is real.
+
+## Report something an agent did wrong
+
+Please [open an issue](https://github.com/spec-0/studio/issues) and include:
+
+- which agent, and its version (`codex --version` or `gemini --version`, for example)
+- your Studio version, from **Settings → Updates**
+- what you asked, and what you expected the agent to do
+- what it did instead: the relevant tool cards from the chat (a screenshot is fine), or the entries in
+  the MCP tab's activity log
+- whether **Use Spec0 instructions** was on, and whether you'd edited them
+
+Check that what you paste has no secrets in it. Studio replaces secret values with their `{{name}}`,
+but a value you typed into a message yourself isn't one Studio knows about.
+
+## Improve these pages
+
+These pages are written in Studio's repository, in
+[`docs/user/agent-chat/`](https://github.com/spec-0/studio/tree/main/docs/user/agent-chat). A fix
+is a pull request like any other.

@@ -1,0 +1,85 @@
+---
+title: Studio's instructions
+description: What Studio tells the agent about working in Studio, the task guides that come with it, where they're written, and how to change or turn them off.
+docType: concept
+---
+
+A coding agent knows how to write code, not how Studio expects it to test an API. So Studio gives
+the agent a short set of instructions, plus four step-by-step guides for common tasks. The text is
+open source: you can read exactly what the agent is told in
+[`src/agent-profile/`](https://github.com/spec-0/studio/tree/main/src/agent-profile) in Studio's
+repository.
+
+## What the agent is told
+
+In short:
+
+- It's working with a developer inside Spec0 Studio, and Studio's tools are in the `spec0-studio`
+  MCP server. It should use them rather than `curl` or scripts of its own, because you can see
+  everything it does through them.
+- Start from the spec: find the operation before sending anything, and send requests through Studio
+  so auth is filled in and the response is checked.
+- Anything that creates, changes or deletes data goes to a local mock first, unless you ask for a
+  real server. When it needs your approval for a request, it says in a sentence why.
+- When it tests more than one call, it builds a collection and runs it, so you can see the steps,
+  keep them and run them again. It uses an expected status for failure cases it means to test.
+- If a response doesn't match the spec, it reports the operation, the field, what came back and
+  what the spec says. It doesn't change the spec or the code to make a test pass unless you ask.
+- Secrets are `{{name}}`. It uses the name and never asks for the value.
+- Keep answers short, and name anything it created so you can find it.
+
+## The task guides
+
+| Guide | What the agent does |
+|---|---|
+| Test an API end to end | Lists the API's operations, starts a local mock unless you named a server, builds a collection for the main flow and a failure case or two, runs it, and reports what passed and what didn't. |
+| Check a running server against its spec | Confirms the base URL, checks the server's operations against the spec, and groups the mismatches by operation, saying whether the server or the spec looks wrong. |
+| Build a collection from a description | Maps each step you describe to an operation, links values between steps instead of copying them, asks about anything you left open, and runs it once. |
+| Explain a failed run | Reads the run log, finds the first failing step, says what was sent, what came back and which check failed, and suggests one fix. |
+
+The guides name Studio's real tools, and Studio's own tests check that every tool they mention
+exists.
+
+## Where they're written
+
+Each agent reads instructions from a file in the folder it works in. When the agent works in
+Studio's own folder, which is the default, Studio writes the instructions into that file before a
+chat starts:
+
+| Agent | File |
+|---|---|
+| Codex | `AGENTS.md` |
+| Claude Agent | `CLAUDE.md` |
+| Gemini CLI | `GEMINI.md` |
+| Another agent | `AGENTS.md` |
+
+The guides go in `spec0-studio/guides/` next to it. Studio's folder is in its cache folder:
+`~/Library/Caches/io.spec0.studio/agent-workspace` on macOS, `%LOCALAPPDATA%\io.spec0.studio\agent-workspace`
+on Windows, and `~/.cache/io.spec0.studio/agent-workspace` on Linux.
+
+Each file starts with a line saying Studio wrote it and which version of the instructions it is.
+When a new version of Studio changes the instructions, Studio rewrites the files the next time a
+chat starts.
+
+## Using your own folder
+
+If you choose a project folder for the agent, Studio writes nothing there. It sends the
+instructions and guides with the first message of each chat instead, inside the
+[Studio context chip](/docs/studio/agent-chat/working-with-the-agent#the-studio-context-chip), so you
+can read them in the chat. Your own `AGENTS.md` or `CLAUDE.md` in that folder still applies, since
+the agent reads it as usual.
+
+## Editing and restoring
+
+You can edit the files in Studio's folder. If you change one, Studio leaves your version alone and
+stops updating it. **Settings → Agent chat** then says you've edited the instructions or one of the
+guides, with **Restore Studio's version** to put Studio's text back.
+
+If you think your change would help everyone, please suggest it. See
+[Contributing](/docs/studio/agent-chat/contributing).
+
+## Turning them off
+
+Turn off **Use Spec0 instructions** in **Settings → Agent chat**. Studio then removes the files it
+wrote and hasn't been changed since, and sends no instructions with the first message. Files you
+edited are left where they are. The context note about what's open is still sent.
