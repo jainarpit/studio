@@ -47,15 +47,14 @@
   {
     "name": "search_operations",
     "title": "Search operations",
-    "description": "Fuzzy search over the operations of the APIs in Studio (paths, operationIds, summaries, tags and descriptions). Returns the best matches with their API, method and path; pass one to get_operation for details. Searches this machine's library only; for the whole organisation, use the remote Spec0 MCP server.",
+    "description": "Fuzzy search over the operations of the APIs in Studio (paths, operationIds, summaries, tags and descriptions). Returns the best matches with their API, method and path; pass one to get_operation for details. Pass api without query to list that API's operations instead. Searches this machine's library only; for the whole organisation, use the remote Spec0 MCP server.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "query": { "type": "string", "description": "What you're looking for, such as \"cancel order\" or \"/users/{id}\"." },
-        "api": { "type": "string", "description": "Limit the search to one API (id or title). Optional." },
+        "query": { "type": "string", "description": "What you're looking for, such as \"cancel order\" or \"/users/{id}\". Leave it out, with api set, to list that API's operations." },
+        "api": { "type": "string", "description": "Limit the search to one API (id or title). With no query, lists that API's operations." },
         "limit": { "type": "integer", "minimum": 1, "maximum": 50, "description": "How many results to return. Default 15." }
       },
-      "required": ["query"],
       "additionalProperties": false
     },
     "annotations": { "readOnlyHint": true, "openWorldHint": false },

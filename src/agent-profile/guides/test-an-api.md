@@ -1,6 +1,6 @@
 # Test an API end to end
 
-1. Find the API with `list_local_apis` and read its operations with `search_operations` or `get_api_spec`.
+1. Find the API with `list_local_apis` and list its operations with `search_operations` (pass `api` and no query) or read `get_api_spec`.
 2. Start a local mock with `start_local_mock`, unless the developer named a server to test against.
 3. Create a collection with `create_collection` for the main flow, for example create, read, update, then delete.
 4. Add each call with `add_step`, pointing it at the mock or the server the developer named.

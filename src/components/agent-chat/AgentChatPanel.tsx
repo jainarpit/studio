@@ -8,6 +8,11 @@ import {
   isAgentChatShortcut,
   setAgentChatPanelOpen,
   toggleAgentChatPanel,
+  chatWidthAfterKey,
+  clampChatWidth,
+  CHAT_WIDTH,
+  saveChatWidth,
+  savedChatWidth,
 } from "../../lib/agentChatPanel";
 import {
   chatSuggestions,
@@ -69,6 +74,27 @@ export function AgentChatPanel({ mentionChoices, studioContext, onOpenInStudio, 
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const pinned = useRef(true);
+  const [width, setWidth] = useState(() => clampChatWidth(savedChatWidth(), window.innerWidth));
+  const dragging = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // Keep the chat inside the window when the window gets narrower.
+  useEffect(() => {
+    const onResize = () => setWidth((current) => clampChatWidth(current, window.innerWidth));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // The console spans the page, so it stops where the chat starts.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--agent-chat-space", open ? `${width}px` : "0px");
+    return () => root.style.setProperty("--agent-chat-space", "0px");
+  }, [open, width]);
+
+  const resizeTo = (next: number) => {
+    setWidth(next);
+    saveChatWidth(next);
+  };
 
   // ⌘⇧J / Ctrl+Shift+J, from anywhere in the window.
   useEffect(() => {
@@ -151,7 +177,39 @@ export function AgentChatPanel({ mentionChoices, studioContext, onOpenInStudio, 
   };
 
   return (
-    <aside className="agent-chat" aria-label="Agent chat">
+    <aside className="agent-chat" aria-label="Agent chat" style={{ width }}>
+      <div
+        className="agent-chat-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the agent chat"
+        aria-valuemin={CHAT_WIDTH.min}
+        aria-valuemax={CHAT_WIDTH.max}
+        aria-valuenow={width}
+        tabIndex={0}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragging.current = { startX: event.clientX, startWidth: width };
+        }}
+        onPointerMove={(event) => {
+          const drag = dragging.current;
+          if (!drag) return;
+          setWidth(clampChatWidth(drag.startWidth + (drag.startX - event.clientX), window.innerWidth));
+        }}
+        onPointerUp={(event) => {
+          if (!dragging.current) return;
+          dragging.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          saveChatWidth(width);
+        }}
+        onKeyDown={(event) => {
+          const next = chatWidthAfterKey(event.key, width, window.innerWidth);
+          if (next === null) return;
+          event.preventDefault();
+          resizeTo(next);
+        }}
+      />
       <header className="agent-chat-head">
         <strong>Agent chat</strong>
         {agentLabel && <span className="agent-chat-agent">{agentLabel}</span>}

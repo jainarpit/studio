@@ -449,11 +449,35 @@ const getOperation: Tool = async (args, deps) => {
 };
 
 const searchOperations: Tool = async (args, deps) => {
-  const query = str(args, "query");
-  if (!query) throw new ToolFailure("Pass a query.");
+  // Agents reach for other names for the search text, so the common ones count too.
+  const query = str(args, "query") ?? str(args, "q") ?? str(args, "search");
+  const apiRef = str(args, "api");
+  if (!query && !apiRef) {
+    throw new ToolFailure('Pass query, such as "create order", or api to list one API\'s operations.');
+  }
   const limit = Math.min(50, Math.max(1, int(args, "limit") ?? 15));
   const entries = await deps.loadLibrary();
-  const scope = str(args, "api") ? [findApi(entries, str(args, "api"))] : entries;
+  const scope = apiRef ? [findApi(entries, apiRef)] : entries;
+
+  // With an API and nothing to search for, list its operations in spec order.
+  if (!query) {
+    const entry = scope[0];
+    const spec = await specFor(entry, deps);
+    return text({
+      api: entry.title,
+      apiId: entry.id,
+      total: spec.operations.length,
+      operations: spec.operations.slice(0, limit).map((op) => ({
+        method: op.method,
+        path: op.path,
+        operationId: op.operationId,
+        summary: op.summary,
+      })),
+      ...(spec.operations.length > limit
+        ? { note: `Showing ${limit} of ${spec.operations.length}. Raise limit (up to 50), or pass query to narrow it down.` }
+        : {}),
+    });
+  }
 
   const matches: Array<Json & { score: number }> = [];
   for (const entry of scope) {
