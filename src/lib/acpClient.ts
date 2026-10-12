@@ -41,7 +41,14 @@ export interface PlanEntryView {
 }
 
 export type ChatItem =
-  | { kind: "user"; id: string; text: string; mentions: string[] }
+  | {
+      kind: "user";
+      id: string;
+      text: string;
+      mentions: string[];
+      /** The note about Studio this message carried, on the first message of a session. */
+      context?: string;
+    }
   | { kind: "agent"; id: string; text: string; messageId?: string | null }
   | { kind: "thought"; id: string; text: string }
   | {
@@ -241,8 +248,12 @@ export interface OpenOptions {
   startTimeoutMs?: number;
 }
 
-/** How Studio's tools reached the agent, for the panel to say. */
-export type McpLink = "connected" | "server-off" | "unsupported";
+/**
+ * How Studio's tools reached the agent, for the panel to say. `openChat` gives
+ * the first three; the chat adds `disabled` (turned off in Settings) and `lost`
+ * (the server stopped or changed after the session started).
+ */
+export type McpLink = "connected" | "server-off" | "unsupported" | "disabled" | "lost";
 
 export interface AgentChat {
   sessionId: string;

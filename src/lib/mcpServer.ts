@@ -40,6 +40,11 @@ export const DEFAULT_MCP_PORT = 47321;
  * reloads it. `detail.specChanged` is set when an API's spec text changed.
  */
 export const LIBRARY_CHANGED_EVENT = "studio:library-changed";
+/**
+ * Fired on `window` after the server starts or stops, with an `McpState` as
+ * `detail`, so the MCP tab and an open agent chat both see it.
+ */
+export const MCP_STATE_EVENT = "studio:mcp-state";
 
 export interface McpPrefs {
   /** Per-install bearer token. Empty until first needed. */
@@ -101,6 +106,15 @@ export interface McpStatus {
 
 const STOPPED: McpStatus = { running: false, port: null };
 
+/** The server as it is after a start or a stop: where it listens and the token it takes. */
+export interface McpState extends McpStatus {
+  token: string | null;
+}
+
+function announce(state: McpState): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent<McpState>(MCP_STATE_EVENT, { detail: state }));
+}
+
 export async function mcpStatus(): Promise<McpStatus> {
   if (!inTauri) return STOPPED;
   try {
@@ -114,12 +128,28 @@ export async function mcpStatus(): Promise<McpStatus> {
 export async function startMcp(prefs: McpPrefs): Promise<McpStatus> {
   if (!inTauri) throw new Error("The local MCP server needs the desktop app.");
   await ensureBridge();
-  return invoke<McpStatus>("mcp_start", { port: prefs.port, token: prefs.token });
+  const status = await invoke<McpStatus>("mcp_start", { port: prefs.port, token: prefs.token });
+  announce({ ...status, token: status.running ? prefs.token : null });
+  return status;
 }
 
 export async function stopMcp(): Promise<McpStatus> {
   if (!inTauri) return STOPPED;
-  return invoke<McpStatus>("mcp_stop");
+  const status = await invoke<McpStatus>("mcp_stop");
+  announce({ ...status, token: null });
+  return status;
+}
+
+/**
+ * The server for a new agent chat: running already, or started now with the
+ * saved port and token. Throws with a readable reason when it can't start.
+ */
+export async function ensureMcpRunning(): Promise<{ url: string; port: number; token: string; started: boolean }> {
+  const [status, prefs] = await Promise.all([mcpStatus(), loadMcpPrefs()]);
+  const started = !(status.running && status.port);
+  const running = started ? await startMcp(prefs) : status;
+  if (!running.running || !running.port) throw new Error("The local MCP server didn't start.");
+  return { url: endpoint(running.port), port: running.port, token: prefs.token, started };
 }
 
 /**

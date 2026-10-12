@@ -20,6 +20,7 @@ import {
   type ChatItem,
 } from "../acpClient";
 import { __events, connectProcess, splitArgs, type AgentProcess } from "../acpProcess";
+import { promptBlocks, STUDIO_CONTEXT_URI, studioContextNote } from "../agentChat";
 
 const FAKE_AGENT = fileURLToPath(new URL("../../../scripts/fake-acp-agent.mjs", import.meta.url));
 
@@ -270,6 +271,17 @@ describe("a session with an agent process", () => {
     ]);
     const reply = seen.items().find((item) => item.kind === "agent");
     expect(reply?.kind === "agent" && reply.text).toContain("Received 2 blocks: text, resource studio://operation/GET%20%2Forders");
+    chat.close();
+  });
+
+  it("sends the note about Studio first, as a resource the agent receives", async () => {
+    const agent = runFakeAgent();
+    const seen = collector();
+    const chat = await openChat(agent.stream, seen.handlers, OPTIONS);
+    const note = studioContextNote({ api: { title: "Orders API" } }, true);
+    await chat.prompt(promptBlocks("what did I attach?", [], chat.embeddedContext, note));
+    const reply = seen.items().find((item) => item.kind === "agent");
+    expect(reply?.kind === "agent" && reply.text).toContain(`Received 2 blocks: resource ${STUDIO_CONTEXT_URI}, text`);
     chat.close();
   });
 

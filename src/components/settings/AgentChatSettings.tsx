@@ -295,6 +295,24 @@ export function AgentChatSettings() {
         )}
       </section>
 
+      <section className="section">
+        <h3>Studio&apos;s tools</h3>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={prefs.studioTools}
+            onChange={(event) => void settings.setPrefs({ studioTools: event.target.checked })}
+          />
+          Give the agent Studio&apos;s tools
+        </label>
+        <p className="field-meta">
+          When a chat starts, Studio starts its local MCP server if it isn&apos;t running and connects the agent to
+          it, so the agent can look up your APIs, send requests, start local mocks and run collections. Requests and
+          other actions still ask you first, as they do for any agent. The first message of each chat also tells the
+          agent it&apos;s in Studio and what you have open.
+        </p>
+      </section>
+
       {prefs.agent === "claude" && <AnthropicKey />}
 
       <section className="section">
