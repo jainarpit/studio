@@ -18,6 +18,15 @@ active environment.
   spec declares for that status.
 - The whole run is one entry in [History](/docs/studio/requests#history), with its steps inside it.
 
+While it runs, the status bar at the bottom shows the collection and the step, such as "Running
+Checkout · step 2 of 5", with a progress bar, on whatever page you're on. Click it to open the run.
+
+When the run ends, a notice says whether it passed, or which step failed and why, with **View run**.
+A passed notice goes away after a few seconds; a failed one stays until you close it. If you started
+the run from the collection's page, Studio opens its log for you. Runs an agent started, or runs
+that finish while you're on another page, only show the notice, so you aren't moved away from what
+you're doing.
+
 The header then shows the last run's result, such as "Last run: 2 passed · 1 failed · 9 ms".
 
 ## Expected status

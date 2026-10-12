@@ -1,0 +1,62 @@
+---
+title: Privacy and safety
+description: What leaves your computer when you use the agent chat, where it goes, and what stops the agent from doing more than you allow.
+docType: concept
+---
+
+## What leaves your computer
+
+The chat sends nothing until you send a message. Then:
+
+- **What you type and attach** goes to the agent you chose, and from there to its model provider:
+  OpenAI for Codex, Anthropic for Claude Agent, Google for Gemini CLI. What happens to it there is
+  up to that provider and your account with them.
+- **Secret values never go.** Your message, its attachments and the Studio context note have
+  secret values replaced by their `{{name}}` first.
+- **Studio's instructions** go with the first message when the agent works in a folder you chose.
+  They contain nothing about you or your APIs.
+- **Requests the agent sends through Studio** go to the hosts you allowed, like any request you
+  send yourself.
+
+Studio doesn't send your chats anywhere else, and it never sees your sign-in to Codex or Gemini
+CLI. Your Anthropic API key stays in your system's credential store and is given only to the
+Claude agent. If it ever shows up in what the agent writes, Studio shows `[hidden]` in its place.
+
+## What Studio keeps
+
+| What | Where | How long |
+|---|---|---|
+| Past chats | On this computer, with secret values replaced | The last 30 |
+| Agent activity (tool calls, requests and responses) | In memory, in the MCP tab | Until Studio quits |
+| Chat sessions starting and ending | In memory, in the [console](/docs/studio/console) | Until Studio quits; never what was said |
+| Studio's instructions | Studio's agent folder | Until you turn them off |
+
+## What the agent can do, and what stops it
+
+The agent can use Studio's tools, but Studio decides what each tool may do:
+
+- **You approve where requests go.** Studio asks before the agent's first request to each host,
+  and again before any `DELETE`, `PUT` or `PATCH` to a host that isn't on your computer. Starting a
+  local mock and saving a file ask first too. Nothing is allowed by default, and an unanswered
+  question is refused after five minutes.
+- **You can block hosts.** Hosts under **Blocked hosts** in the MCP tab are refused without asking.
+  Use it for production.
+- **There's a request limit.** **Requests a minute** caps how many requests all agents together can
+  send. It's 60 unless you change it.
+- **Agents change only their own drafts.** They can read and run your collections, not edit them.
+- **The agent never sees secret values**, in requests, responses or run logs.
+- **Stop agents** in the MCP tab stops everything at once: it refuses anything waiting, cancels
+  agents' runs, forgets this session's approvals and stops the server. A chat that's open then
+  offers **Reconnect**.
+
+These limits are enforced by Studio, not by asking the agent nicely. The
+[instructions](/docs/studio/agent-chat/instructions) help the agent work well, but an agent that
+ignores them still can't get past an approval. See [Local MCP server](/docs/studio/mcp) for the full
+list of tools and approvals.
+
+## What Studio doesn't give the agent
+
+Studio doesn't give the agent access to your files or a terminal. The agent has its own tools for
+those, works in the [folder you chose](/docs/studio/agent-chat/setup#the-folder-the-agent-works-in),
+and asks for permission in the chat the way it normally does. Studio's own empty folder is the
+default, so the agent starts with nothing of yours to read.

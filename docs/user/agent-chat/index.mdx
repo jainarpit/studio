@@ -1,0 +1,77 @@
+---
+title: Agent chat
+description: Chat with a coding agent you already use, such as Codex, Claude Agent or Gemini CLI, in a panel inside Studio, with Studio's tools and what you have open already connected.
+docType: concept
+---
+
+The **Agent** panel is a chat with a coding agent that's on your computer. Studio doesn't run a
+model of its own. It starts the agent you choose, talks to it over the
+[Agent Client Protocol](https://agentclientprotocol.com) (ACP), which is how editors such as Zed
+host agents, and shows what comes back.
+
+Press **Agent** at the right of the top bar, or `⇧⌘J` (`Ctrl+Shift+J` on Windows and Linux). The
+panel opens on the right, and the page next to it gets narrower, so nothing is hidden behind it.
+
+## What the agent can do in Studio
+
+When a chat starts, Studio connects the agent to its [local MCP server](/docs/studio/mcp), so the
+agent can use your APIs the way you do:
+
+- look up the APIs in your library, their operations and their specs
+- send requests, with your environments and auth, and check each response against the spec
+- start a [local mock](/docs/studio/local-mocks) of an API and send requests to it
+- build [collections](/docs/studio/collections), run them and read their run logs
+- check a running server against its spec
+
+Studio asks you before the agent's first request to each host, before it starts a mock, and before
+anything else that has an effect outside the chat. The agent never sees secret values: it writes
+`{{token}}` and Studio fills in the value when it sends the request.
+
+The agent also knows it's working inside Studio. The first message of each chat tells it what you
+have open, and Studio gives it a short set of [instructions](/docs/studio/agent-chat/instructions)
+on how to work here: start from the spec, use a local mock for anything that changes data, and
+build tests as collections you can keep.
+
+## What it looks like in use
+
+Say you have the Orders API open and you ask the agent to test it end to end.
+
+1. The agent reads the Orders API's operations through Studio's tools.
+2. It asks to start a local mock of the Orders API. Studio shows you the request, and you allow it.
+3. It creates a collection, which appears in **Collections** as a draft while the agent adds steps:
+   create an order, read it back, cancel it, then expect a `404` when it reads the cancelled order.
+4. It runs the collection. The status bar shows which step is running, and a notice tells you
+   whether it passed.
+5. In the chat, the agent sums up what passed and what didn't, with the field and what the spec
+   says for each mismatch. The tool card for the run has **Open in Studio**, which takes you to the
+   run log.
+
+If you like the collection, press **Keep** on its banner and it's yours. Agents can run a collection
+you've kept, but they can't change it.
+
+## What goes where
+
+What you type and attach goes to the agent you chose, and from there to its model provider. Secret
+values are replaced with their `{{name}}` first. Nothing else leaves your computer because of the
+chat, and Studio keeps your past chats on this computer only. See
+[Privacy and safety](/docs/studio/agent-chat/privacy-and-safety).
+
+## In this section
+
+- [Set up an agent](/docs/studio/agent-chat/setup): Codex, Claude Agent, Gemini CLI or another
+  agent, and the folder it works in.
+- [Working with the agent](/docs/studio/agent-chat/working-with-the-agent): attachments,
+  suggestions, approvals, runs and past chats.
+- [Studio's instructions](/docs/studio/agent-chat/instructions): exactly what the agent is told,
+  and how to change it.
+- [Privacy and safety](/docs/studio/agent-chat/privacy-and-safety): what leaves your computer, and
+  what the agent can and can't do.
+- [Troubleshooting](/docs/studio/agent-chat/troubleshooting): when an agent isn't found, isn't
+  signed in, or doesn't use Studio's tools.
+- [Contributing](/docs/studio/agent-chat/contributing): suggest better instructions, or report
+  something an agent did wrong.
+
+<Callout title="Good to know">
+Agent chat is new, and the ACP adapters it runs are young. If an agent doesn't work the way this
+section says, please [open an issue](https://github.com/spec-0/studio/issues).
+</Callout>

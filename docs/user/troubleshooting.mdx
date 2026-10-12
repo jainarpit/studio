@@ -131,29 +131,11 @@ Agents can change only the drafts they created. Once you keep a draft, or for a 
 made, an agent can read and run it, or copy it into a new draft. See
 [Collections agents build](/docs/studio/mcp#collections-agents-build).
 
-### Agent chat says no agent was found
+### Agent chat doesn't find my agent, or it needs signing in
 
-Studio opened from the Dock or a launcher doesn't get your terminal's `PATH`. It looks in the usual
-install folders too, but if your agent is somewhere else, choose its full path in **Settings →
-Agent chat**. Studio shows the command and asks you to confirm it. For Claude Agent and Codex,
-Studio can also run the adapter with `npx`, which needs Node.js.
-
-### The agent says I need to sign in
-
-Sign in to the agent itself, then start a new chat:
-
-- **Codex**: run `codex login` in a terminal.
-- **Gemini CLI**: run `gemini` in a terminal and choose how to sign in.
-- **Claude Agent**: add an Anthropic API key in **Settings → Agent chat**. Without a saved key,
-  Studio only uses an `ANTHROPIC_API_KEY` it was started with, and an app opened from the Dock
-  doesn't read your shell profile, so a key set only there isn't seen. Claude Agent doesn't start
-  without a key; it never uses a claude.ai or Claude Code sign-in.
-
-### The agent can't use Studio's tools
-
-Studio's MCP server was off when the chat started. Start it from the button in the panel, or in the
-MCP tab, then start a new chat. A few agents can't connect to an MCP server over HTTP at all; the
-panel says so.
+See [Troubleshooting agent chat](/docs/studio/agent-chat/troubleshooting), which covers agents
+Studio can't find, signing in, the Anthropic API key for Claude Agent, and chats that don't have
+Studio's tools.
 
 ## Collections
 
