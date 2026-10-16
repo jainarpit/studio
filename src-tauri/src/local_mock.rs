@@ -721,6 +721,33 @@ mod tests {
     }
 
     #[test]
+    fn a_head_over_a_socket_has_the_get_length_and_no_body() {
+        let mock = start("test_head", Some(47_920), Arc::new(Echo)).unwrap();
+        let send = |method: &str| -> String {
+            let mut stream = TcpStream::connect(("127.0.0.1", mock.port)).unwrap();
+            let raw = format!("{method} /orders HTTP/1.1\r\nHost: 127.0.0.1:{}\r\n\r\n", mock.port);
+            stream.write_all(raw.as_bytes()).unwrap();
+            let mut response = String::new();
+            stream.read_to_string(&mut response).unwrap();
+            response
+        };
+        let length = |response: &str| {
+            response
+                .lines()
+                .find_map(|line| line.strip_prefix("Content-Length: "))
+                .map(str::to_string)
+        };
+        let get = send("GET");
+        let head = send("HEAD");
+        stop("test_head");
+
+        let (_, get_body) = get.split_once("\r\n\r\n").unwrap();
+        assert!(!get_body.is_empty());
+        assert_eq!(length(&head), Some(get_body.len().to_string()), "{head}");
+        assert!(head.ends_with("\r\n\r\n"), "{head}");
+    }
+
+    #[test]
     fn ids_are_library_ids_only() {
         assert!(valid_id("sample_1x9z"));
         assert!(valid_id("file_abc-12"));
