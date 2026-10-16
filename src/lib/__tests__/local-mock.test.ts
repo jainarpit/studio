@@ -280,10 +280,17 @@ describe("answerMockRequest", () => {
     expect(header(options, "allow")).toBe("GET, HEAD, POST");
   });
 
-  it("sends no body for HEAD or 204", () => {
+  it("answers HEAD with the GET's headers and body, for Rust to frame without the body", () => {
+    // Rust leaves a HEAD's body off the wire but keeps its Content-Length, so the
+    // body has to be here for the length to be the one the GET would have.
+    const get = answerMockRequest(sample, req("GET", "/orders"));
     const head = answerMockRequest(sample, req("HEAD", "/orders"));
     expect(head.status).toBe(200);
-    expect(head.body).toBe("");
+    expect(head.body).not.toBe("");
+    expect(head).toEqual(get);
+  });
+
+  it("sends no body for 204", () => {
     const s = spec({ "/ping": { post: { responses: { "204": { description: "done" } } } } });
     expect(answerMockRequest(s, req("POST", "/ping"))).toMatchObject({ status: 204, body: "" });
   });

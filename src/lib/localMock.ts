@@ -460,7 +460,7 @@ export function answerMockRequest(
     );
   }
 
-  const { op, params, head } = match;
+  const { op, params } = match;
   const query = new URLSearchParams(request.query);
   const operationHeader: [string, string] = [OPERATION_HEADER, headerSafe(`${op.method} ${op.path}`)];
   const problems = checkRequest(spec, op, params, request);
@@ -479,7 +479,9 @@ export function answerMockRequest(
 
   const headers: Array<[string, string]> = [operationHeader, ...declaredHeaders(spec.doc, chosen.definition)];
   let body = "";
-  const noBody = head || chosen.status === 204 || chosen.status === 304 || chosen.status < 200;
+  // A HEAD keeps its body here: Rust sends the headers with this body's
+  // Content-Length, as the GET would have, and leaves the body itself out.
+  const noBody = chosen.status === 204 || chosen.status === 304 || chosen.status < 200;
   const mediaType = chooseMediaType(chosen.definition?.content, request.headers.accept);
   if (mediaType) {
     const value = responseValue(spec.doc, chosen.definition?.content?.[mediaType], requestedExample(request.headers));
