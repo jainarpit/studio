@@ -204,16 +204,23 @@ export function closestOperations(spec: ParsedSpec, path: string, limit = 3): st
 
 // Choosing the response
 
-/** A status the caller asked for, from `Prefer: code=`, `X-Mock-Status` or `?__status=`. */
+/**
+ * A status the caller asked for, from `Prefer: code=`, `X-Mock-Status` or
+ * `?__status=`, in that order. The first one that holds a valid status wins; one
+ * that is present but invalid is skipped, so it can't hide the next.
+ */
 export function requestedStatus(headers: Record<string, string>, query: URLSearchParams): number | null {
-  const raw =
-    /(?:^|[;,\s])code=(\d{3})\b/i.exec(headers.prefer ?? "")?.[1] ??
-    headers[STATUS_HEADER]?.trim() ??
-    query.get(STATUS_QUERY) ??
-    null;
-  if (!raw || !/^\d{3}$/.test(raw)) return null;
-  const status = Number(raw);
-  return status >= 100 && status <= 599 ? status : null;
+  const sources = [
+    /(?:^|[;,\s])code=(\d{3})\b/i.exec(headers.prefer ?? "")?.[1],
+    headers[STATUS_HEADER]?.trim(),
+    query.get(STATUS_QUERY)?.trim(),
+  ];
+  for (const raw of sources) {
+    if (!raw || !/^\d{3}$/.test(raw)) continue;
+    const status = Number(raw);
+    if (status >= 100 && status <= 599) return status;
+  }
+  return null;
 }
 
 /** A named example the caller asked for: `Prefer: example=paid`. */
