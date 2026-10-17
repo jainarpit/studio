@@ -80,7 +80,8 @@ A frontend served from `localhost` or `127.0.0.1`, on any port, can call a local
 browser. Studio answers the CORS preflight and adds the CORS headers.
 
 Requests from any other website are refused, so a page you have open in your browser can't read
-your specs through the mock.
+your specs through the mock. That includes `<script>` and `<img>` tags that point at the mock.
+Opening a mock URL directly in the browser's address bar still works.
 
 ## Ports
 
