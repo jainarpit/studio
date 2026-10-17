@@ -11,8 +11,14 @@
 //!    headers, and any other origin, `null` included, is refused before the
 //!    request goes anywhere. A website you happen to have open must not be able
 //!    to read your specs through the mock, or even find out which ones you're
-//!    serving. Tools that send no `Origin` (curl, a backend, Studio itself) are
-//!    answered as usual.
+//!    serving. Browsers leave `Origin` off no-cors loads (`<script src>`,
+//!    `<img src>`), whose load and error events still tell a 200 from a 404, so
+//!    a request without one that `Sec-Fetch-Site` says came from another page
+//!    is refused too, unless its `Referer` is a page on this computer. Tools
+//!    that send neither (curl, a backend, Studio itself) are answered as usual.
+//!
+//! Every response carries `X-Content-Type-Options: nosniff`, so a browser never
+//! runs a JSON body as a script.
 //!
 //! This module owns the socket and those checks, and answers CORS preflights
 //! itself. Every other request is handed to the web view as a
@@ -105,6 +111,9 @@ impl MockResponse {
         }
         if self.header("cache-control").is_none() {
             out.push_str("Cache-Control: no-store\r\n");
+        }
+        if self.header("x-content-type-options").is_none() {
+            out.push_str("X-Content-Type-Options: nosniff\r\n");
         }
         out.push_str(&format!("Content-Length: {}\r\nConnection: close\r\n\r\n", self.body.len()));
         let mut bytes = out.into_bytes();
@@ -203,6 +212,27 @@ pub fn origin_allowed(origin: &str) -> bool {
     is_loopback_name(name) && port_ok(authority, name)
 }
 
+/// A browser request with no `Origin` (a no-cors `<script>` or `<img>` load, or a
+/// navigation): it's fine when `Sec-Fetch-Site` says the user asked for it
+/// (`none`) or the mock's own page did (`same-origin`). Sent by another page, it
+/// has to be one on this computer, which only the `Referer` can tell; a page
+/// that sends none is refused. Clients without `Sec-Fetch-Site` aren't browsers.
+fn no_origin_allowed(request: &HttpRequest) -> bool {
+    let Some(site) = request.header("sec-fetch-site") else { return true };
+    if matches!(site.trim().to_ascii_lowercase().as_str(), "none" | "same-origin") {
+        return true;
+    }
+    request.header("referer").and_then(referer_origin).is_some_and(origin_allowed)
+}
+
+/// `scheme://authority` of a `Referer`, without its path, query or fragment.
+fn referer_origin(referer: &str) -> Option<&str> {
+    let referer = referer.trim();
+    let start = referer.find("://")? + 3;
+    let end = referer[start..].find(['/', '?', '#']).map_or(referer.len(), |at| start + at);
+    Some(&referer[..end])
+}
+
 /// A header list from a preflight's `Access-Control-Request-Headers`: tokens only.
 fn safe_header_list(raw: &str) -> String {
     raw.split(',')
@@ -237,14 +267,16 @@ pub fn gate(request: &HttpRequest) -> Gate {
         ));
     }
     let origin = request.header("origin");
-    if let Some(origin) = origin {
-        if !origin_allowed(origin) {
-            // No CORS headers: the page learns nothing, not even that this is a mock.
-            return Gate::Answer(MockResponse::json(
-                403,
-                &json!({ "error": "This local mock only answers web pages served from localhost or 127.0.0.1." }),
-            ));
-        }
+    let allowed = match origin {
+        Some(origin) => origin_allowed(origin),
+        None => no_origin_allowed(request),
+    };
+    if !allowed {
+        // No CORS headers: the page learns nothing, not even that this is a mock.
+        return Gate::Answer(MockResponse::json(
+            403,
+            &json!({ "error": "This local mock only answers web pages served from localhost or 127.0.0.1." }),
+        ));
     }
     let preflight = request.method == "OPTIONS" && request.header("access-control-request-method").is_some();
     match (origin, preflight) {
@@ -663,6 +695,48 @@ mod tests {
         );
         assert_eq!(response.status, 403);
         assert!(!response.body.contains("\"mock\""));
+    }
+
+    #[test]
+    fn a_website_cant_probe_with_no_cors_loads() {
+        // `<script src>` sends no Origin, but its load/error events tell a 200 from a 404.
+        let probe = |extra: &[(&'static str, &'static str)]| {
+            let mut headers = vec![("host", "127.0.0.1:4010")];
+            headers.extend_from_slice(extra);
+            handle(&request("GET", &headers), "m", &Echo)
+        };
+        for refused in [
+            probe(&[("sec-fetch-site", "cross-site")]),
+            probe(&[("sec-fetch-site", "same-site")]),
+            probe(&[("sec-fetch-site", "cross-site"), ("referer", "https://evil.example/page")]),
+            probe(&[("sec-fetch-site", "cross-site"), ("referer", "http://localhost.evil.example/")]),
+            probe(&[("sec-fetch-site", "cross-site"), ("referer", "http://localhost:3000@evil.example/")]),
+            probe(&[("sec-fetch-site", "something-new")]),
+        ] {
+            assert_eq!(refused.status, 403);
+            assert!(!refused.body.contains("\"mock\""));
+            assert!(header(&refused, "access-control-allow-origin").is_none());
+        }
+        // Typed into the address bar, the mock's own page, or a page on this computer.
+        for answered in [
+            probe(&[("sec-fetch-site", "none")]),
+            probe(&[("sec-fetch-site", "same-origin")]),
+            probe(&[("sec-fetch-site", "cross-site"), ("referer", "http://localhost:5173/app?x=1")]),
+            probe(&[("sec-fetch-site", "same-site"), ("referer", "http://127.0.0.1:8080")]),
+        ] {
+            assert_eq!(answered.status, 200);
+            assert!(header(&answered, "access-control-allow-origin").is_none());
+        }
+        assert_eq!(referer_origin("http://[::1]:3000/a#b"), Some("http://[::1]:3000"));
+        assert_eq!(referer_origin("not a url"), None);
+    }
+
+    #[test]
+    fn every_response_says_nosniff() {
+        for response in [MockResponse::json(200, &json!({})), MockResponse::empty(403)] {
+            let wire = String::from_utf8(response.to_bytes(false)).unwrap();
+            assert!(wire.contains("\r\nX-Content-Type-Options: nosniff\r\n"), "{wire}");
+        }
     }
 
     #[test]

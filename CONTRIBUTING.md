@@ -383,7 +383,11 @@ something the user turns on. It refuses any `Host` that isn't a loopback name (D
 any browser `Origin` other than `http(s)://localhost`, `127.0.0.1` or `[::1]`
 on any port, `null` included. That refusal covers simple requests as well as
 preflights, because a GET needs no preflight and would otherwise let any
-website probe the mock and read what it serves. Pages on localhost get CORS
+website probe the mock and read what it serves. A browser request with no
+`Origin` (a `<script src>` or `<img src>` load) is refused too when
+`Sec-Fetch-Site` says another page sent it and its `Referer` isn't a page on
+this computer: its load and error events would tell a 200 from a 404. Every
+response says `X-Content-Type-Options: nosniff`. Pages on localhost get CORS
 headers, since frontend developers are who the mock is for. There is no auth:
 it's local, and a token would stop the frontend from simply pointing at it.
 
