@@ -139,6 +139,22 @@ describe("choosing the response", () => {
     expect(requestedStatus({}, none)).toBeNull();
   });
 
+  it("skips an invalid status source instead of letting it hide the next one", () => {
+    const query = new URLSearchParams("__status=404");
+    expect(requestedStatus({ "x-mock-status": "abc" }, query)).toBe(404);
+    expect(requestedStatus({ "x-mock-status": "" }, query)).toBe(404);
+    expect(requestedStatus({ "x-mock-status": "999" }, query)).toBe(404);
+    expect(requestedStatus({ prefer: "code=999", "x-mock-status": "418" }, query)).toBe(418);
+    // Order still holds between valid sources.
+    expect(requestedStatus({ prefer: "code=409", "x-mock-status": "418" }, query)).toBe(409);
+    expect(requestedStatus({ "x-mock-status": "abc" }, new URLSearchParams("__status=nope"))).toBeNull();
+    const response = answerMockRequest(
+      sample,
+      req("GET", "/orders?__status=404", { headers: { "x-mock-status": "abc" } }),
+    );
+    expect(response.status).toBe(404);
+  });
+
   it("picks the media type Accept asks for, else JSON, else the first", () => {
     const content = { "application/xml": {}, "application/json": {}, "text/csv": {} };
     expect(chooseMediaType(content, undefined)).toBe("application/json");
